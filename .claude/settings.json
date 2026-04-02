@@ -2,19 +2,5 @@
   "env": {
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
   },
-  "teammateMode": "tmux",
-  "permissions": {
-    "allow": [
-      "WebSearch",
-      "WebFetch",
-      "Read",
-      "Write",
-      "Edit",
-      "Glob",
-      "Grep",
-      "Bash(mkdir *)",
-      "Bash(ls *)",
-      "Bash(cat *)"
-    ]
-  }
+  "teammateMode": "tmux"
 }
