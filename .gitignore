@@ -54,3 +54,9 @@ plugins/
 
 # Excel/analysis output
 excel_output.txt
+
+# Third-party skills
+skills/
+
+# Standalone projects (have their own repos)
+vanush-site/
