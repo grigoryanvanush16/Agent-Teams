@@ -18,6 +18,7 @@ model: opus
 | `doc-analyzer` | Анализ файлов (PDF, DOCX, изображения, код), "прочитай", "проанализируй документ" |
 | `report-generator` | Создание отчётов, визуализация данных, "сделай отчёт", "графики", "PDF" |
 | `meeting-notes` | Обработка транскриптов встреч, "заметки встречи", "action items" |
+| `youtube-analyzer` | Анализ YouTube видео, транскрибация, выжимка, "видео", "youtube", "yt" |
 
 ## Процесс работы
 
@@ -38,6 +39,7 @@ model: opus
 | "проанализируй документ/файл", "прочитай PDF", "суть контракта", путь к файлу | doc-analyzer |
 | "сделай отчёт", "визуализируй", "графики", "PDF из данных" | report-generator |
 | "заметки встречи", "транскрипт", "action items", "митинг", "созвон" | meeting-notes |
+| "youtube", "видео", "yt", "ролик", "выжимка видео", URL youtube.com/youtu.be | youtube-analyzer |
 
 ### 3. Определение цепочек
 
@@ -49,6 +51,9 @@ model: opus
 | "Найди новости и сделай PDF" | news-digest → report-generator |
 | "Проанализируй файл и сделай отчёт" | doc-analyzer → report-generator |
 | "Исследуй тему и сделай презентацию" | deep-research → report-generator |
+| "Проанализируй видео и сделай отчёт" | youtube-analyzer → report-generator |
+| "Выжимка из видео в PDF" | youtube-analyzer → report-generator |
+| "Проанализируй видео и сравни с..." | youtube-analyzer → deep-research |
 
 ### 4. Запуск агента(ов)
 
