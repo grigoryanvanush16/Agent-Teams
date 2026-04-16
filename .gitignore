@@ -1,0 +1,56 @@
+# Credentials & secrets
+.credentials.json
+*.secret
+.env
+
+# Local settings
+settings.local.json
+.claude/settings.local.json
+mcp-needs-auth-cache.json
+security_warnings_state_*.json
+stats-cache.json
+
+# Node
+node_modules/
+dist/
+
+# Build artifacts & temp
+bundle/
+cache/
+debug/
+backups/
+outputs/
+file-history/
+shell-snapshots/
+
+# Claude internal
+.claude/.claude/
+.claude/.playwright-mcp/
+sessions/
+telemetry/
+history.jsonl
+tasks/
+scheduled-tasks/
+projects/
+
+# Screenshots & temp images
+.claude/*.png
+
+# Temp scripts
+tmp_*.py
+*.backup*
+CLAUDE.md.backup-*
+
+# IDE
+.claude/launch.json
+launch.json
+ide/
+
+# Plugins (third-party)
+plugins/
+
+# DataLens snapshots
+.claude/datalens_snapshot.md
+
+# Excel/analysis output
+excel_output.txt
