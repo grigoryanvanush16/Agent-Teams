@@ -1,6 +1,6 @@
 # Claude Code Toolkit — Agent Teams
 
-Универсальный тулкит из 7 агентов для Claude Code Agent Teams. Каждый агент заточен под конкретный класс задач. Можно вызывать напрямую или через Router.
+Универсальный тулкит из 8 агентов для Claude Code Agent Teams. Каждый агент заточен под конкретный класс задач. Можно вызывать напрямую или через Router.
 
 ## Обязательный режим запуска
 
@@ -29,12 +29,13 @@ claude
 | # | Агент | Назначение | Модель | MCP (опционально) |
 |---|-------|-----------|--------|-------------------|
 | 1 | `router` | Lead-агент, маршрутизация запросов и цепочки | opus | — |
-| 2 | `deep-research` | Глубокий ресёрч по любой теме | opus | — |
+| 2 | `deep-research` | Глубокий ресёрч по любой теме | opus | Brave Search |
 | 3 | `parser` | Парсинг сайтов в таблицу | sonnet | Chrome DevTools, Google Sheets |
-| 4 | `news-digest` | Дайджест новостей по темам | sonnet | — |
+| 4 | `news-digest` | Дайджест новостей по темам | sonnet | Brave Search |
 | 5 | `doc-analyzer` | Анализ документов любого формата | opus | — |
 | 6 | `report-generator` | Генерация отчётов из данных | sonnet | Google Sheets |
 | 7 | `meeting-notes` | Обработка транскриптов встреч | sonnet | Google Sheets |
+| 8 | `youtube-analyzer` | Анализ YouTube видео: скачивание, транскрибация, выжимка | opus | — |
 
 ## Два режима работы
 
@@ -58,6 +59,13 @@ claude
 
 Router определит цепочку: parser → report-generator
 
+```
+Создай Agent Team с router.
+Задание: "Проанализируй это видео и сделай отчёт: https://youtube.com/watch?v=..."
+```
+
+Router определит цепочку: youtube-analyzer → report-generator
+
 ## MCP-зависимости
 
 Агенты проверяют наличие MCP при старте. Если MCP не установлен:
@@ -66,8 +74,10 @@ Router определит цепочку: parser → report-generator
 
 | MCP | Используется в | Fallback |
 |-----|---------------|----------|
+| Brave Search | deep-research, news-digest | WebSearch + WebFetch |
 | Chrome DevTools | parser | WebFetch (только статический HTML) |
 | Google Sheets | parser, report-generator, meeting-notes | CSV/XLSX файлы |
+| yt-dlp + whisper + ffmpeg | youtube-analyzer | — (обязательны) |
 
 ## Runtime-структура
 
