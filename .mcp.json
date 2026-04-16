@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "youtrack": {
+      "command": "python",
+      "args": ["c:/Users/User/.claude/youtrack-mcp/server.py"],
+      "env": {
+        "YOUTRACK_TOKEN": "${YOUTRACK_TOKEN}"
+      }
+    }
+  }
+}
