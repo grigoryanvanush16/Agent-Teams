@@ -1,0 +1,33 @@
+{
+  "mcpServers": {
+    "youtrack": {
+      "command": "python",
+      "args": ["C:/Users/User/Projects/youtrack-mcp/server.py"],
+      "env": {
+        "YOUTRACK_TOKEN": "${YOUTRACK_TOKEN}"
+      }
+    },
+    "yandex-mail": {
+      "command": "python",
+      "args": ["C:/Users/User/Projects/yandex-mail-mcp/server.py"],
+      "env": {
+        "YANDEX_EMAIL": "${YANDEX_EMAIL}",
+        "YANDEX_APP_PASSWORD": "${YANDEX_APP_PASSWORD}"
+      }
+    },
+    "telegram": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "C:/Users/User/Projects/telegram-mcp",
+        "run",
+        "main.py"
+      ],
+      "env": {
+        "TELEGRAM_API_ID": "${TELEGRAM_API_ID}",
+        "TELEGRAM_API_HASH": "${TELEGRAM_API_HASH}",
+        "TELEGRAM_SESSION_STRING": "${TELEGRAM_SESSION_STRING}"
+      }
+    }
+  }
+}
