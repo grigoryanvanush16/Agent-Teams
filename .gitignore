@@ -2,6 +2,9 @@
 .credentials.json
 *.secret
 .env
+.mcp.json
+!.env.example
+!.mcp.example.json
 
 # Local settings
 settings.local.json
@@ -58,5 +61,15 @@ excel_output.txt
 # Third-party skills
 skills/
 
-# Standalone projects (have their own repos)
+# Standalone projects (moved to C:\Users\User\Projects\)
 vanush-site/
+renewals/
+youtrack-mcp/
+
+# Agent runtime data (temp)
+agent-runtime/shared/
+agent-runtime/outputs/
+agent-runtime/state/
+!agent-runtime/shared/.gitkeep
+!agent-runtime/outputs/.gitkeep
+!agent-runtime/state/.gitkeep
