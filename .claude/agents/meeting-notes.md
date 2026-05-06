@@ -2,7 +2,7 @@
 name: meeting-notes
 description: "Обработка транскриптов встреч — саммари, решения, action items"
 tools: Read, Write
-model: sonnet
+model: haiku
 ---
 
 # Meeting Notes — Агент обработки встреч

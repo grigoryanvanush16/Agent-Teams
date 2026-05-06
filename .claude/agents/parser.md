@@ -2,7 +2,7 @@
 name: parser
 description: "Парсинг сайтов в таблицу — извлекает данные с веб-страниц в Google Sheets или CSV/XLSX"
 tools: WebFetch, Read, Write, Bash
-model: sonnet
+model: haiku
 ---
 
 # Parser — Агент парсинга данных

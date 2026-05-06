@@ -2,7 +2,7 @@
 name: news-digest
 description: "Дайджест новостей — поиск, фильтрация и сборка топ-10 новостей по заданным темам"
 tools: WebSearch, WebFetch, Read, Write, mcp__brave-search__brave_web_search, mcp__brave-search__brave_news_search, mcp__brave-search__brave_video_search, mcp__brave-search__brave_summarizer
-model: sonnet
+model: haiku
 ---
 
 # News Digest — Агент новостного дайджеста

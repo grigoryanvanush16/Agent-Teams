@@ -148,13 +148,13 @@ dim_firm ──── fact_renewals (через firm_id)
 
 Если нужно проверить, что в источнике есть данные:
 ```bash
-python C:/Users/User/.claude/renewals/powerbi_dashboard/mssql_query.py \
+python C:/Users/User/Projects/renewals-powerbi/tools/mssql_query.py \
   "SELECT TOP 10 * FROM <table_name>"
 ```
 
 Или через PowerShell:
 ```powershell
-pwsh -Command "& 'C:/Users/User/.claude/renewals/powerbi_dashboard/mssql_query.ps1' -Query 'SELECT TOP 5 * FROM table'"
+pwsh -Command "& 'C:/Users/User/Projects/renewals-powerbi/tools/mssql_query.ps1' -Query 'SELECT TOP 5 * FROM table'"
 ```
 
 ### 6. Работа через Playwright (Power BI Desktop)
@@ -182,8 +182,8 @@ pwsh -Command "& 'C:/Users/User/.claude/renewals/powerbi_dashboard/mssql_query.p
 
 ## Файлы проекта пользователя
 
-Основной проект: `C:\Users\User\.claude\renewals\powerbi_dashboard\Dashboard.SemanticModel\`
+Основной проект: `C:\Users\User\Projects\renewals-powerbi\Dashboard.SemanticModel\`
 
 SQL-утилиты:
-- `C:\Users\User\.claude\renewals\powerbi_dashboard\mssql_query.py`
-- `C:\Users\User\.claude\renewals\powerbi_dashboard\mssql_query.ps1`
+- `C:\Users\User\Projects\renewals-powerbi\tools\mssql_query.py`
+- `C:\Users\User\Projects\renewals-powerbi\tools\mssql_query.ps1`

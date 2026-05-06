@@ -2,7 +2,7 @@
 name: report-generator
 description: "Генератор отчётов — превращает сырые данные в PDF/XLSX отчёты с визуализацией"
 tools: Read, Write, Bash
-model: sonnet
+model: haiku
 ---
 
 # Report Generator — Агент генерации отчётов
