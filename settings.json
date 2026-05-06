@@ -12,18 +12,72 @@
       "NotebookEdit(*)",
       "TodoWrite(*)",
       "Agent(*)",
-      "mcp__*",
-      "Read(//c/Users/User/.claude/renewals/**)",
-      "Bash(mkdir -p \"C:/Users/User/.claude/renewals/metrics_collector\")"
+      "mcp__*"
     ],
-    "defaultMode": "acceptEdits"
+    "deny": [
+      "Bash(*DROP TABLE*)",
+      "Bash(*DROP DATABASE*)",
+      "Bash(*DROP SCHEMA*)",
+      "Bash(*TRUNCATE TABLE*)",
+      "Bash(*TRUNCATE *)",
+      "Bash(*DELETE FROM*)",
+      "Bash(*UPDATE *SET *)",
+      "Bash(*ALTER TABLE*DROP*)",
+      "Bash(*GRANT *)",
+      "Bash(*REVOKE *)",
+      "Bash(*INSERT INTO*production*)",
+      "Bash(*CREATE DATABASE*)",
+      "Bash(*git push --force*)",
+      "Bash(*git reset --hard*)",
+      "Bash(rm -rf /*)",
+      "Bash(*DROP USER*)"
+    ],
+    "defaultMode": "bypassPermissions"
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"C:/Users/User/Desktop/МД/0.AI_Hub/scripts/log_session.py\" \"session ended\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/User/.claude/hooks/uncommitted_reminder.py\""
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"C:/Users/User/.claude/hooks/sqlfluff_fix.py\""
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"C:/Users/User/.claude/hooks/context_loader.py\""
+          }
+        ]
+      }
+    ]
   },
   "enabledPlugins": {
     "superpowers@superpowers-marketplace": true,
     "frontend-design@claude-plugins-official": true,
     "code-review@claude-plugins-official": true,
     "security-guidance@claude-plugins-official": true,
-    "claude-mem@thedotmack": true,
     "skill-creator@claude-plugins-official": true
   },
   "extraKnownMarketplaces": {
@@ -38,14 +92,9 @@
         "source": "github",
         "repo": "obra/superpowers-marketplace"
       }
-    },
-    "thedotmack": {
-      "source": {
-        "source": "github",
-        "repo": "thedotmack/claude-mem"
-      }
     }
   },
   "language": "russian",
-  "effortLevel": "high"
+  "effortLevel": "high",
+  "preferredNotifChannel": "terminal_bell"
 }
