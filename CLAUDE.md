@@ -1,93 +1,106 @@
-# Claude Code Toolkit — Agent Teams
+# Claude Code — Рабочее пространство Вануш Григорян
 
-Универсальный тулкит из 8 агентов для Claude Code Agent Teams. Каждый агент заточен под конкретный класс задач. Можно вызывать напрямую или через Router.
+## Обо мне
 
-## Обязательный режим запуска
+Руководитель аналитики в компании «Моё дело» (SaaS-бухгалтерия). Строю Data Warehouse, автоматизирую аналитику, управляю отчётностью Power BI.
 
-Запуск через `tmux` обязателен для Agent Teams.
+Стек: SQL (T-SQL, PostgreSQL, MySQL), Power BI (DAX, TMDL/PBIP), Python, dbt.
 
-```bash
-tmux new -s claude-toolkit
-claude
-```
+## Предпочтения
 
-## Обязательные настройки проекта
+- **Автономность**: делай сам максимум, спрашивай только по крупным решениям
+- **Текст**: пиши как аналитик, не как AI. Без «Давайте рассмотрим», «Важно отметить», без шаблонных вводных
+- **Ошибки**: перед финализацией сверяй с эталоном. Не повторяй одну и ту же ошибку
+- **Ответы**: без саммари в конце — я сам вижу результат
 
-В `.claude/settings.json` должно быть:
+## Проекты
 
-```json
-{
-  "env": {
-    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
-  },
-  "teammateMode": "tmux"
-}
-```
+### DWH (приоритет)
 
-## Агенты
+| Проект | Путь | Описание |
+|--------|------|----------|
+| **DWH архитектура** | `C:\Users\User\Desktop\МД\2.DWH\` | Roadmap, BRD, инвентаризация |
+| **ТЗ для DWH** | `C:\Users\User\Desktop\МД\3.ТЗ_DWH\` | Технические задания DE |
+| **DWH Production** | `C:\Users\User\Desktop\МД\4.DWH_Production\` | dbt-проект |
 
-| # | Агент | Назначение | Модель | MCP (опционально) |
-|---|-------|-----------|--------|-------------------|
-| 1 | `router` | Lead-агент, маршрутизация запросов и цепочки | opus | — |
-| 2 | `deep-research` | Глубокий ресёрч по любой теме | opus | Brave Search |
-| 3 | `parser` | Парсинг сайтов в таблицу | sonnet | Chrome DevTools, Google Sheets |
-| 4 | `news-digest` | Дайджест новостей по темам | sonnet | Brave Search |
-| 5 | `doc-analyzer` | Анализ документов любого формата | opus | — |
-| 6 | `report-generator` | Генерация отчётов из данных | sonnet | Google Sheets |
-| 7 | `meeting-notes` | Обработка транскриптов встреч | sonnet | Google Sheets |
-| 8 | `youtube-analyzer` | Анализ YouTube видео: скачивание, транскрибация, выжимка | opus | — |
+### Code Projects (`C:\Users\User\Projects\`)
 
-## Два режима работы
+| Проект | Описание |
+|--------|----------|
+| **renewals-powerbi** | Дашборд продлений (PBIP) |
+| **youtrack-mcp** | MCP-сервер для YouTrack |
+| **yandex-mail-mcp** | MCP-сервер для Яндекс.Почты |
+| **telegram-mcp** | MCP-сервер для Telegram (third-party) |
+| **mail-digest-bot** | Утренний дайджест писем в ЯМ (08:30 будни) |
+| **sales-daily-bot** | Скрины Power BI в ЯМ (09:28 будни) |
+| **mikhail-replacement** | Автоматизация задач Михаила (Power BI мониторинг, Excel-отчёты) |
+| **mr-rybus-marketing** | Маркетинг кафе Mr.Рыбус (апр-июнь 2026) |
+| **vanush-site** | Личный сайт (Next.js) |
 
-### Прямой вызов агента
+Каждый проект содержит свой `CLAUDE.md` с локальным контекстом.
 
-Пользователь запускает конкретного агента:
+### AI Hub — центральное пространство агентов
 
-```
-Создай Team с агентом deep-research.
-Тема: "Лучшие ноутбуки для разработки 2026"
-```
+Путь: `C:\Users\User\Desktop\МД\0.AI_Hub\`
 
-### Через Router
+| Папка | Назначение |
+|-------|-----------|
+| `context/` | Граф сущностей, процессы, команда |
+| `inbox/` | Входящие данные: email, telegram, ya_messenger |
+| `knowledge/` | База знаний: analysis, research, decisions |
+| `eval/` | Лог сессий, оценки качества |
+| `lessons/` | Ошибки и выводы агентов |
+| `scripts/` | Детерминистические скрипты (validate_naming, check_tz) |
 
-Пользователь описывает задачу, Router выбирает агента(ов):
+**Правила:**
+- Финальные артефакты (ТЗ, dbt, дашборды) → проектные папки
+- Скриншоты → `0.AI_Hub/knowledge/projects/<project>/`, не в корень `.claude/`
+- Разбор накопившегося: `python "C:/Users/User/Desktop/МД/0.AI_Hub/scripts/sort_artifacts.py"`
 
-```
-Создай Agent Team с router.
-Задание: "Спарси вакансии с HH и сделай отчёт по зарплатам"
-```
+## Инфраструктура — где живёт детально
 
-Router определит цепочку: parser → report-generator
+- **Базы данных (10 источников)** — `.claude/rules/databases.md` (загружается при работе с SQL/Python)
+- **DWH naming convention** — `.claude/rules/dwh-naming.md` (загружается при работе с моделями dbt)
+- **Power BI conventions** — `.claude/rules/powerbi.md` (загружается при работе с TMDL/PBIP)
 
-```
-Создай Agent Team с router.
-Задание: "Проанализируй это видео и сделай отчёт: https://youtube.com/watch?v=..."
-```
+Полные доступы (логины+пароли): `C:\Users\User\Downloads\Доступы (1) (1).xlsx`
 
-Router определит цепочку: youtube-analyzer → report-generator
+## Внешние системы
 
-## MCP-зависимости
+- **YouTrack** — таск-трекер (MCP подключён)
+- **Power BI Desktop / Report Server** — дашборды
 
-Агенты проверяют наличие MCP при старте. Если MCP не установлен:
-1. Агент предлагает установку с пошаговой инструкцией
-2. Если пользователь отказывается — агент работает через fallback
+## Agent Teams
+
+12 агентов в `.claude/agents/`. Можно вызывать напрямую или через Router.
+
+| Доменные | Универсальные |
+|----------|--------------|
+| `dwh-architect` (Opus) | `router` (Opus) |
+| `tz-writer` (Opus) | `deep-research` (Opus) |
+| `data-analyst` (Opus) | `doc-analyzer` (Opus) |
+| `powerbi-expert` (Opus) | `youtube-analyzer` (Opus) |
+| | `parser` (Haiku) |
+| | `news-digest` (Haiku) |
+| | `report-generator` (Haiku) |
+| | `meeting-notes` (Haiku) |
+
+### MCP-зависимости
 
 | MCP | Используется в | Fallback |
 |-----|---------------|----------|
 | Brave Search | deep-research, news-digest | WebSearch + WebFetch |
-| Chrome DevTools | parser | WebFetch (только статический HTML) |
-| Google Sheets | parser, report-generator, meeting-notes | CSV/XLSX файлы |
-| yt-dlp + whisper + ffmpeg | youtube-analyzer | — (обязательны) |
+| Playwright | parser, powerbi-expert | WebFetch |
+| YouTrack / Yandex Mail / Telegram | встроены | — |
+| yt-dlp + whisper + ffmpeg | youtube-analyzer | обязательны |
 
-## Runtime-структура
+### Runtime структура
 
 ```
 agent-runtime/
-├── shared/        # Промежуточные данные (для цепочек агентов)
+├── shared/        # Промежуточные данные между агентами
 ├── outputs/       # Финальные результаты
 └── state/         # Статус работы
 ```
 
-## Роли агентов
-
-Детальные описания: `.claude/agents/`
+Детальные роли агентов: `.claude/agents/`
