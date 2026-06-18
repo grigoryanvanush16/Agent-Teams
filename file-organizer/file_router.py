@@ -77,7 +77,7 @@ def main(argv=None):
         return
 
     manifest = load_manifest(args.manifest)
-    run_id = datetime.now().isoformat(timespec="seconds")
+    run_id = datetime.now().strftime("%Y%m%dT%H%M%S%f")
     rows = run(config, manifest, args.dry_run, run_id,
                matched_only=args.matched_only, only=args.only)
     print_table(rows, args.dry_run)

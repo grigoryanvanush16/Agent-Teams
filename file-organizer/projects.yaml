@@ -15,7 +15,7 @@
 
 - name: callanalytics_sales
   dest: "C:/Users/User/Desktop/МД/Диагностика функций/"
-  keywords: ["статусы_", "квалификатор", "оператор", "operations .*\\.csv", "исходящ.*лини"]
+  keywords: ["статусы_", "квалификатор", "работе оператор", "оператор.*кц", "operations .*\\.csv", "исходящ.*лини"]
 
 - name: pricing
   dest: "C:/Users/User/Desktop/МД/Ценообразование/"
@@ -43,7 +43,7 @@
 
 - name: planning
   dest: "C:/Users/User/Desktop/МД/Планирование/"
-  keywords: ["бюджет", "тактплан", "такт план", "тактическ.*план", "для cf", "_cf ", "планировани", "commercial_plan"]
+  keywords: ["^бюджет", "тактплан", "такт план", "тактическ.*план", "для cf", "_cf ", "планировани", "commercial_plan"]
 
 - name: dwh
   dest: "C:/Users/User/Desktop/МД/2.DWH/"

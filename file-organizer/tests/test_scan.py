@@ -55,6 +55,19 @@ def test_iter_filters_by_extension_and_md(tmp_path):
     assert got == {"a.xlsx"}
 
 
+def test_readonly_file_is_not_treated_as_locked(tmp_path):
+    import os
+    import stat
+    from router.scan import is_locked
+    f = tmp_path / "readonly.xlsx"
+    f.write_text("x")
+    os.chmod(f, stat.S_IREAD)  # снять право записи
+    try:
+        assert is_locked(f) is False  # read-only ≠ занят процессом
+    finally:
+        os.chmod(f, stat.S_IWRITE | stat.S_IREAD)
+
+
 def test_iter_skips_missing_source_dir(tmp_path):
     missing = tmp_path / "nope"
     got = list(iter_candidates([missing], min_age_seconds=0, now=time.time()))

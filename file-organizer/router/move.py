@@ -71,7 +71,9 @@ def _move_back(entry):
     if not dst.exists():
         return False
     src.parent.mkdir(parents=True, exist_ok=True)
-    shutil.move(str(dst), str(src))
+    # не перезаписывать, если на исходном месте уже что-то появилось
+    target = src if not src.exists() else resolve_collision(src.parent, src.name)
+    shutil.move(str(dst), str(target))
     return True
 
 
@@ -85,11 +87,11 @@ def _undo_entries(journal_path, to_undo, to_keep):
 
 
 def undo_last_run(journal_path):
-    """Откатывает последний прогон (по run_id последней записи)."""
+    """Откатывает последний прогон (run_id с наибольшим ts)."""
     entries = _read_journal(journal_path)
     if not entries:
         return 0
-    last_run = entries[-1].get("run_id")
+    last_run = max(entries, key=lambda e: e["ts"]).get("run_id")
     to_undo = [e for e in entries if e.get("run_id") == last_run]
     to_keep = [e for e in entries if e.get("run_id") != last_run]
     return _undo_entries(journal_path, to_undo, to_keep)

@@ -92,3 +92,23 @@ def test_undo_since_reverts_by_timestamp(tmp_path):
 
 def test_undo_empty_journal_returns_zero(tmp_path):
     assert undo_last_run(tmp_path / "absent.jsonl") == 0
+
+
+def test_undo_does_not_overwrite_reappeared_source(tmp_path):
+    src_dir = tmp_path / "src"
+    src_dir.mkdir()
+    f = src_dir / "report.xlsx"
+    f.write_text("original")
+    journal = tmp_path / "journal.jsonl"
+    safe_move(f, tmp_path / "dst", journal_path=journal, rule="r", layer=1,
+              run_id="R1", ts="2026-06-18T09:00:00")
+    # на исходном месте появился ДРУГОЙ файл с тем же именем
+    (src_dir / "report.xlsx").write_text("new different file")
+
+    undo_last_run(journal)
+
+    # оба файла целы: новый на месте, откатанный — рядом с суффиксом
+    assert (src_dir / "report.xlsx").read_text() == "new different file"
+    restored = list(src_dir.glob("report (*).xlsx"))
+    assert len(restored) == 1
+    assert restored[0].read_text() == "original"

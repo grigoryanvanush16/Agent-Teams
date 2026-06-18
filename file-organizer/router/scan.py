@@ -1,3 +1,4 @@
+import os
 import re
 import time
 from pathlib import Path
@@ -32,7 +33,13 @@ def is_sortable(name):
 
 
 def is_locked(path):
-    """Best-effort: файл открыт в Excel/Word → PermissionError → считаем занятым."""
+    """Best-effort: файл открыт в Excel/Word → PermissionError → считаем занятым.
+
+    Read-only атрибут — это НЕ блокировка процессом: такой файл считаем
+    свободным (иначе read-only файлы молча выпадали бы из раскладки).
+    """
+    if not os.access(path, os.W_OK):
+        return False
     try:
         with open(path, "rb+"):
             return False
