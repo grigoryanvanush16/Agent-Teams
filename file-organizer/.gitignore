@@ -1,0 +1,6 @@
+journal.jsonl
+reports/
+_не_разобрано/
+__pycache__/
+*.pyc
+.pytest_cache/

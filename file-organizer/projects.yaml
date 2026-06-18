@@ -1,0 +1,19 @@
+- name: renewals
+  dest: "C:/Users/User/Desktop/МД/Продления/"
+  keywords: ["продлени", "renewal", "сравнен.*продл"]
+
+- name: tz_dwh
+  dest: "C:/Users/User/Desktop/МД/3.ТЗ_DWH/"
+  keywords: ["^тз ", "^тз_", "техническое задание"]
+
+- name: marketing_analytics
+  dest: "C:/Users/User/Desktop/МД/Аналитика/"
+  keywords: ["метрик.*маркет", "маркет.*метрик", "глоссарий метрик", "список метрик", "описание метрик"]
+
+- name: callanalytics_sales
+  dest: "C:/Users/User/Desktop/МД/Диагностика функций/"
+  keywords: ["статусы_", "квалификатор", "оператор", "operations .*\\.csv", "исходящ.*лини"]
+
+- name: sales_reports
+  dest: "C:/Users/User/Desktop/МД/КД/"
+  keywords: ["отч[её]т продажи", "выгрузка по продажам", "выгрузка по .*лид", "план_мп", "план_лиды"]
