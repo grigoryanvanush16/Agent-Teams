@@ -19,6 +19,10 @@ def test_normal_file_not_ignored():
     assert not should_ignore("report.xlsx")
 
 
+def test_excel_lock_file_is_ignored():
+    assert should_ignore("~$Бюджет 2026.xlsx")
+
+
 def test_is_sortable_extensions():
     assert is_sortable("a.PDF")
     assert is_sortable("b.xlsx")

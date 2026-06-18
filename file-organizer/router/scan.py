@@ -9,6 +9,7 @@ SORTABLE_EXTENSIONS = {
 
 IGNORE_PATTERNS = [
     r"^\.",            # .gitignore, .DS_Store, dotfiles
+    r"^~\$",           # ~$... — временные lock-файлы Excel/Word
     r"^README",
     r"^CLAUDE\.md$",
     r"^settings",

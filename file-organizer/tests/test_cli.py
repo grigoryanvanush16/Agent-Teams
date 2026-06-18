@@ -47,6 +47,15 @@ def test_real_run_routes_matched_and_unsorted(tmp_path):
     assert journal.exists()
 
 
+def test_matched_only_leaves_unsorted_in_place(tmp_path):
+    src, dest, unsorted, config, manifest, journal = _setup(tmp_path)
+    file_router.main(["--matched-only", "--config", str(config),
+                      "--manifest", str(manifest)])
+    assert (dest / "Сравнение_продления.xlsx").exists()      # сматченный — перемещён
+    assert (src / "Портрет.xlsx").exists()                    # несматченный — на месте
+    assert not unsorted.exists()                              # _не_разобрано не создан
+
+
 def test_undo_after_run_restores(tmp_path):
     src, dest, unsorted, config, manifest, journal = _setup(tmp_path)
     file_router.main(["--config", str(config), "--manifest", str(manifest)])

@@ -1,10 +1,13 @@
-- name: renewals
-  dest: "C:/Users/User/Desktop/МД/Продления/"
-  keywords: ["продлени", "renewal", "сравнен.*продл"]
+# Манифест маршрутизации. Порядок = приоритет: первое совпадение выигрывает.
+# Узкие/специфичные правила держим выше широких.
 
 - name: tz_dwh
   dest: "C:/Users/User/Desktop/МД/3.ТЗ_DWH/"
-  keywords: ["^тз ", "^тз_", "техническое задание"]
+  keywords: ["^тз ", "^тз_", "^tz_", "техническое задание"]
+
+- name: renewals
+  dest: "C:/Users/User/Desktop/МД/Продления/"
+  keywords: ["продлени", "renewal", "сравнен.*продл", "переподписк"]
 
 - name: marketing_analytics
   dest: "C:/Users/User/Desktop/МД/Аналитика/"
@@ -14,6 +17,38 @@
   dest: "C:/Users/User/Desktop/МД/Диагностика функций/"
   keywords: ["статусы_", "квалификатор", "оператор", "operations .*\\.csv", "исходящ.*лини"]
 
+- name: pricing
+  dest: "C:/Users/User/Desktop/МД/Ценообразование/"
+  keywords: ["ценообраз", "pricing", "себестоимост"]
+
+- name: hr_kpi
+  dest: "C:/Users/User/Desktop/МД/Запрос KPI от HR/"
+  keywords: ["kpi_sales", "questionnaire", "kpi.*опрос"]
+
 - name: sales_reports
   dest: "C:/Users/User/Desktop/МД/КД/"
-  keywords: ["отч[её]т продажи", "выгрузка по продажам", "выгрузка по .*лид", "план_мп", "план_лиды"]
+  keywords: ["отч[её]т продажи", "выгрузка по продажам", "выгрузка по .*лид", "план_мп", "план_лиды", "квал.*лид", "кд.{0,4}лид", "arpu.*лид", "sales_analytics"]
+
+- name: screenshots
+  dest: "C:/Users/User/Desktop/МД/0.AI_Hub/knowledge/screenshots/"
+  keywords: ["^photo_\\d", "^slide_preview", "_preview_\\d", "kpi tree", "^screenshot", "^datalens", "airbrush", "image[-_]enhancer", "^\\d{4}-\\d\\d-\\d\\d_\\d{6}"]
+
+- name: personal
+  dest: "C:/Users/User/Desktop/МД/Личное/"
+  keywords: ["григорян", "диплом", "ведомость"]
+
+- name: recruiting
+  dest: "C:/Users/User/Desktop/МД/Найм/"
+  keywords: ["договор.{0,4}найм", "найма", "вакансия", "резюме"]
+
+- name: planning
+  dest: "C:/Users/User/Desktop/МД/Планирование/"
+  keywords: ["бюджет", "тактплан", "такт план", "тактическ.*план", "для cf", "_cf ", "планировани", "commercial_plan"]
+
+- name: dwh
+  dest: "C:/Users/User/Desktop/МД/2.DWH/"
+  keywords: ["dwh", "roadmap", "analytics_strategy", "analytics_roadmap", "analytics_dwh", "raw_layer", "datamart", "gantt", "центр.{0,4}аналитик", "развит.{0,6}аналитик", "стратег.*аналитик"]
+
+- name: meetings
+  dest: "C:/Users/User/Desktop/МД/0.AI_Hub/knowledge/"
+  keywords: ["встреч", "weekly[ _]meeting", "синк", "созвон", "weekly отчет"]

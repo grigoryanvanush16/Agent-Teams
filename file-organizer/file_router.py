@@ -17,7 +17,7 @@ def load_config(path):
         return yaml.safe_load(f)
 
 
-def run(config, manifest, dry_run, run_id):
+def run(config, manifest, dry_run, run_id, matched_only=False):
     rows = []
     for f in iter_candidates(config["sources"],
                              min_age_seconds=config.get("min_age_seconds", 120)):
@@ -25,6 +25,8 @@ def run(config, manifest, dry_run, run_id):
         if project:
             dest_dir = Path(project["dest"])
             rule = project["name"]
+        elif matched_only:
+            continue  # несматченные оставляем на месте
         else:
             dest_dir = Path(config["unsorted_dir"])
             rule = "_не_разобрано"
@@ -49,6 +51,8 @@ def main(argv=None):
     parser.add_argument("--config", default=str(HERE / "config.yaml"))
     parser.add_argument("--manifest", default=str(HERE / "projects.yaml"))
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--matched-only", action="store_true",
+                        help="перемещать только сматченные, несматченные оставить на месте")
     parser.add_argument("--undo", action="store_true")
     parser.add_argument("--undo-since")
     args = parser.parse_args(argv)
@@ -66,7 +70,7 @@ def main(argv=None):
 
     manifest = load_manifest(args.manifest)
     run_id = datetime.now().isoformat(timespec="seconds")
-    rows = run(config, manifest, args.dry_run, run_id)
+    rows = run(config, manifest, args.dry_run, run_id, matched_only=args.matched_only)
     print_table(rows, args.dry_run)
 
 
