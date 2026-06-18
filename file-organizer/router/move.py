@@ -48,3 +48,56 @@ def safe_move(src, dest_dir, *, journal_path, rule, layer, run_id,
         "rule": rule,
     })
     return target
+
+
+def _read_journal(journal_path):
+    p = Path(journal_path)
+    if not p.exists():
+        return []
+    return [json.loads(line) for line in p.read_text(encoding="utf-8").splitlines()
+            if line.strip()]
+
+
+def _rewrite_journal(journal_path, entries):
+    p = Path(journal_path)
+    with open(p, "w", encoding="utf-8") as f:
+        for e in entries:
+            f.write(json.dumps(e, ensure_ascii=False) + "\n")
+
+
+def _move_back(entry):
+    dst = Path(entry["dst"])
+    src = Path(entry["src"])
+    if not dst.exists():
+        return False
+    src.parent.mkdir(parents=True, exist_ok=True)
+    shutil.move(str(dst), str(src))
+    return True
+
+
+def _undo_entries(journal_path, to_undo, to_keep):
+    moved = 0
+    for entry in reversed(to_undo):
+        if _move_back(entry):
+            moved += 1
+    _rewrite_journal(journal_path, to_keep)
+    return moved
+
+
+def undo_last_run(journal_path):
+    """Откатывает последний прогон (по run_id последней записи)."""
+    entries = _read_journal(journal_path)
+    if not entries:
+        return 0
+    last_run = entries[-1].get("run_id")
+    to_undo = [e for e in entries if e.get("run_id") == last_run]
+    to_keep = [e for e in entries if e.get("run_id") != last_run]
+    return _undo_entries(journal_path, to_undo, to_keep)
+
+
+def undo_since(journal_path, since_iso):
+    """Откатывает все перемещения с ts >= since_iso (ISO-строка)."""
+    entries = _read_journal(journal_path)
+    to_undo = [e for e in entries if e["ts"] >= since_iso]
+    to_keep = [e for e in entries if e["ts"] < since_iso]
+    return _undo_entries(journal_path, to_undo, to_keep)

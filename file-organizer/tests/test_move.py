@@ -51,3 +51,44 @@ def test_safe_move_dry_run_does_nothing(tmp_path):
     assert out == tmp_path / "dst" / "a.xlsx"
     assert f.exists()
     assert not journal.exists()
+
+
+from router.move import undo_last_run, undo_since
+
+
+def _seed_two_runs(tmp_path):
+    """Создаёт src/dst, делает 2 перемещения в run R1 и одно в R2."""
+    src = tmp_path / "src"
+    src.mkdir()
+    journal = tmp_path / "journal.jsonl"
+    for nm in ("a.xlsx", "b.xlsx"):
+        f = src / nm
+        f.write_text(nm)
+        safe_move(f, tmp_path / "dst", journal_path=journal, rule="r",
+                  layer=1, run_id="R1", ts="2026-06-18T09:00:00")
+    f = src / "c.xlsx"
+    f.write_text("c")
+    safe_move(f, tmp_path / "dst", journal_path=journal, rule="r",
+              layer=1, run_id="R2", ts="2026-06-18T11:00:00")
+    return src, journal
+
+
+def test_undo_last_run_reverts_only_last(tmp_path):
+    src, journal = _seed_two_runs(tmp_path)
+    n = undo_last_run(journal)
+    assert n == 1
+    assert (src / "c.xlsx").exists()          # R2 откатан
+    assert not (tmp_path / "dst" / "c.xlsx").exists()
+    assert (tmp_path / "dst" / "a.xlsx").exists()  # R1 на месте
+
+
+def test_undo_since_reverts_by_timestamp(tmp_path):
+    src, journal = _seed_two_runs(tmp_path)
+    n = undo_since(journal, "2026-06-18T10:00:00")
+    assert n == 1                              # только R2 (11:00) >= порога
+    assert (src / "c.xlsx").exists()
+    assert (tmp_path / "dst" / "a.xlsx").exists()
+
+
+def test_undo_empty_journal_returns_zero(tmp_path):
+    assert undo_last_run(tmp_path / "absent.jsonl") == 0
