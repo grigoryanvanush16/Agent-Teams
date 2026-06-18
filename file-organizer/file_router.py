@@ -17,12 +17,18 @@ def load_config(path):
         return yaml.safe_load(f)
 
 
-def run(config, manifest, dry_run, run_id, matched_only=False):
+def run(config, manifest, dry_run, run_id, matched_only=False, only=None):
     rows = []
     for f in iter_candidates(config["sources"],
                              min_age_seconds=config.get("min_age_seconds", 120)):
         project = match_file(f.name, manifest)
-        if project:
+        if only is not None:
+            # приоритет считаем по полному манифесту, двигаем только это правило
+            if not project or project["name"] != only:
+                continue
+            dest_dir = Path(project["dest"])
+            rule = project["name"]
+        elif project:
             dest_dir = Path(project["dest"])
             rule = project["name"]
         elif matched_only:
@@ -53,6 +59,8 @@ def main(argv=None):
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--matched-only", action="store_true",
                         help="перемещать только сматченные, несматченные оставить на месте")
+    parser.add_argument("--only",
+                        help="двигать только файлы этого правила (приоритет по полному манифесту)")
     parser.add_argument("--undo", action="store_true")
     parser.add_argument("--undo-since")
     args = parser.parse_args(argv)
@@ -70,7 +78,8 @@ def main(argv=None):
 
     manifest = load_manifest(args.manifest)
     run_id = datetime.now().isoformat(timespec="seconds")
-    rows = run(config, manifest, args.dry_run, run_id, matched_only=args.matched_only)
+    rows = run(config, manifest, args.dry_run, run_id,
+               matched_only=args.matched_only, only=args.only)
     print_table(rows, args.dry_run)
 
 

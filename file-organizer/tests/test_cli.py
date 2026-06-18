@@ -56,6 +56,17 @@ def test_matched_only_leaves_unsorted_in_place(tmp_path):
     assert not unsorted.exists()                              # _не_разобрано не создан
 
 
+def test_only_moves_single_rule_respecting_priority(tmp_path):
+    src, dest, unsorted, config, manifest, journal = _setup(tmp_path)
+    # добавим второй файл, который НЕ относится к renewals
+    (src / "Портрет.xlsx").write_text("b")  # уже есть в _setup, но убедимся
+    file_router.main(["--only", "renewals", "--config", str(config),
+                      "--manifest", str(manifest)])
+    assert (dest / "Сравнение_продления.xlsx").exists()   # renewals — перемещён
+    assert (src / "Портрет.xlsx").exists()                 # чужой — на месте
+    assert not unsorted.exists()                           # _не_разобрано не трогаем
+
+
 def test_undo_after_run_restores(tmp_path):
     src, dest, unsorted, config, manifest, journal = _setup(tmp_path)
     file_router.main(["--config", str(config), "--manifest", str(manifest)])
