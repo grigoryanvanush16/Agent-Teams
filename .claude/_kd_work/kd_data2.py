@@ -103,16 +103,15 @@ WITH leads AS (                         -- лиды КД с типом и про
          l.is_converted_mom                       -- преобразован мес-в-мес
   FROM int_leads_base l
   WHERE l.lead_type = N'Лиды КД'
-), pays AS (                            -- продажи КД, привязка к лиду по firm_id и месяцу регистрации
-  SELECT s.firm_id,
-         s.payment_date AS pay_date,
-         s.product,
-         CASE WHEN s.is_one_time = 1 THEN N'разовая'
-              WHEN s.is_option   = 1 THEN N'опция'
-              ELSE N'тариф' END                   AS sale_type,
-         s.payment_sum
+), pays AS (                            -- ОПТИМИЗАЦИЯ: предагрегируем продажи до (firm_id, год, месяц) - убирает fan-out
+  SELECT s.firm_id,                     -- (1 лид × N платежей превращался в N строк; теперь 1 строка на фирму-месяц)
+         YEAR(s.payment_date)  AS pay_year,
+         MONTH(s.payment_date) AS pay_month,
+         MAX(CASE WHEN s.is_one_time = 0 AND s.is_option = 0 THEN 1 ELSE 0 END)            AS has_tariff,
+         SUM(CASE WHEN s.is_one_time = 0 AND s.is_option = 0 THEN s.payment_sum ELSE 0 END) AS tariff_sum
   FROM int_sales_base_kd s
   WHERE s.pay_type = N'Новый' AND s.is_deleted = 0
+  GROUP BY s.firm_id, YEAR(s.payment_date), MONTH(s.payment_date)
 ), cost AS (                            -- расходы КД по месяцу/направлению (CostMarketing). Жёлтая правка: var_cost = КВ + сертификаты.
   SELECT month, direction,
          SUM(CASE WHEN cost_item IN (N'КВ партнёра', N'Сертификаты') THEN value ELSE 0 END) AS var_cost,  -- для CPL и CPO
@@ -129,18 +128,16 @@ SELECT
   COUNT(DISTINCT CASE WHEN ld.is_fact_lead = 1 THEN ld.firm_id END)        AS fact_leads_ao,
   COUNT(DISTINCT CASE WHEN ld.is_called = 1 THEN ld.firm_id END)           AS reached,         -- дозвон
   COUNT(DISTINCT CASE WHEN ld.is_converted_mom = 1 THEN ld.firm_id END)    AS qleads_mom,
-  COUNT(DISTINCT CASE WHEN pa.sale_type = N'тариф'
-                      AND MONTH(pa.pay_date) = MONTH(ld.lead_date)
-                      AND YEAR(pa.pay_date)  = YEAR(ld.lead_date)
-                      THEN pa.firm_id END)                         AS sales_tariff_by_lead,
-  SUM(CASE WHEN pa.sale_type = N'тариф'
-           AND MONTH(pa.pay_date) = MONTH(ld.lead_date)
-           AND YEAR(pa.pay_date)  = YEAR(ld.lead_date)
-           THEN pa.payment_sum END)                                AS revenue_tariff_by_lead
+  COUNT(DISTINCT CASE WHEN pa.has_tariff = 1 THEN ld.firm_id END)          AS sales_tariff_by_lead,
+  SUM(pa.tariff_sum)                                                       AS revenue_tariff_by_lead
 FROM leads ld
+-- join по фирме И месяцу регистрации = месяц оплаты (продажа «по дате лида»); pays уже без дублей
 LEFT JOIN pays pa ON pa.firm_id = ld.firm_id
+                 AND pa.pay_year  = YEAR(ld.lead_date)
+                 AND pa.pay_month = MONTH(ld.lead_date)
 GROUP BY ld.lead_date, ld.source_channel_group, ld.source_channel, ld.product;
--- Экономика (CPL, CPLq, CPO, CAC) и конверсии считаются как расчётные поля на агрегате (см. лист «Витрины и таблицы»)."""
+-- Экономика (CPL, CPLq, CPO, CAC) и конверсии считаются как расчётные поля на агрегате (см. лист «Витрины и таблицы»).
+-- ОПТИМИЗАЦИЯ: month-match вынесен в условие JOIN (раньше был в CASE по фан-аут таблице) - меньше промежуточных строк."""
 
 # ============== ЛИСТ 4: Витрины и таблицы ==============
 # Каждая витрина: dict с title, table, sql, fields[(поле,описание,комментарий,пример,ключ,sql)]
