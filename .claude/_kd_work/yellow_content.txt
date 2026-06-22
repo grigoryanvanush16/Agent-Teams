@@ -1,0 +1,267 @@
+R1
+   C1: Показатель
+   C2: Описание
+   C3: Единица
+   C4: Формула
+   C5: Источник
+   C6: Вспомогательный столбец
+
+R2
+   C1: Лиды
+   C2: Лиды КД – количество уникальных Firm_id, где: / Ответственный: Коммерческая дирекция, Коммерческая дирекция. Проект / Направление: Freemium, КЦ, МД2.                                                   Показывает сколько новых потенциальных клиентов пришло от коммерческой дирекции (КД)
+   C3: шт
+   C4: Лиды КД = CALCULATE( /     COUNT( 'Leads'[firm_id] ), Leads[lead_gen_responsible] IN {"Коммерческая дирекция", "Коммерческая дирекция.Проект"} , Leads[direction] IN {"КЦ", "МД 2", "Freemium"} )
+   C5: lead_registration_history  - owox
+   C6: Тип лида =  / SWITCH( /     TRUE(), /     Leads[lead_gen_responsible] IN {"Маркетинг", /*"Маркетинг.Проект"; */ "Маркетинг. Пригласи друга", "Не распределено"}, "Лиды маркетинга", /  /     Leads[lead_gen_responsible] IN {"Коммерческая дирекция", "Коммерческая дирекция.Проект"} && Leads[direction] IN {"КЦ", "МД 2", "Freemium"} && Leads[Альфа-бандл] = "Нет", "Лиды КД", /  /     Leads[lead_gen_responsible] IN {"Коммерческая дирекция", "Коммерческая дирекция.Проект"} && Leads[direction] IN {"КЦ", "МД 2", "Freemium"} && Leads[Альфа-бандл] = "Да", "С прочих источников", /  /     Leads[lead_gen_responsible] IN {"Коммерческая дирекция", "Коммерческая дирекция.Проект"} && Leads[direction] IN {"WL"},  "WL", /  /     Leads[lead_gen_responsible] in {"КД 2.0", "КД 3.0"} , "C проектов КД", /  /    "С прочих источников" / )
+
+R3
+   C1: Дозвон
+   C2: Дозвон – количество Firm_id, где: / Должен быть загружен в АО = Да / Продукт регистрации: ИБ и Аут / Был совершён звонок со статусом: "DROP", "ANSWER", "ABANDON", "FAST_DROP". / Показывает какому кол-ву лидов удалось дозвониться.
+   C3: шт
+   C4: Дозвон, шт =  / VAR SelectedLeadType = SELECTEDVALUE(Leads[Тип лида]) / VAR BaseFilter =  /     FILTER( /         Leads, /         Leads[RegType] <> 1 && /         Leads[RegType] <> 2 && /         COUNTROWS( /             FILTER( /                 RELATEDTABLE(CallsAC), /                 CallsAC[disposition] IN {"DROP", "ANSWER", "ABANDON", "FAST_DROP"} && /                 CallsAC[call_day] + CallsAC[call_time] >= Leads[user_registration_date] + Leads[user_registration_time] /             ) /         ) > 0 /     ) / RETURN / SWITCH( /     TRUE(), /     SelectedLeadType = "Лиды КД", /         CALCULATE( /             COUNT(Leads[firm_id]), /             BaseFilter, /             Leads[Должен быть отгружен в АО] = "Да", /             Leads[registration_product] in {"BIZ", "IB-ACC", "OUT", "OUT-ACC"}, /             Leads[Тип лида] = "Лиды КД" /         ), /      /     SelectedLeadType = "Лиды маркетинга", /         CALCULATE( /             COUNT(Leads[firm_id]), /             BaseFilter, /             Leads[Должен быть отгружен в АО] = "Да", /             Leads[Тип лида] = "Лиды маркетинга", /             Leads[registration_product] in {"BIZ", "IB-ACC", "OUT", "OUT-ACC"} /         ), /      /     // По умолчанию /     CALCULATE( /         COUNT(Leads[firm_id]), /         BaseFilter /     )
+   C5: lead_registration_history  - owox             calls - dialer
+
+R4
+   C1: % дозвона
+   C2: Процент дозвона – Доля лидов, по которым был совершён дозвон, от всех «факт-лидов».  / Считаем как отношение "Дозвон" к "Лиды ИБ и Аут, загруженные в АО"
+   C3: %
+   C4: % дозвона  = VAR SelectedLeadType = SELECTEDVALUE(Leads[Тип лида]) / RETURN / SWITCH( /     TRUE(), /     SelectedLeadType = "Лиды маркетинга", /         DIVIDE(  /             [Дозвон, шт], /             [Факт лиды, ИБ Аут , загр ао шт.] /         ), /      /     SelectedLeadType = "Лиды КД", /     DIVIDE(  /         [Дозвон, шт], /         [Факт лиды, ИБ Аут , загр ао шт.] /     ), /       DIVIDE(  /         [Дозвон, шт], /         [Факт лиды, шт.] /     ) /  / )
+   C5: lead_registration_history  - owox             calls - dialer
+
+R5
+   C1: Факт лиды, ИБ Аут , загр ао шт.
+   C2: Лиды ИБ и Аут, загруженные в АО – количество уникальных Firm_id, где: / Продукт регистрации: ИБ и Аут / Должен быть загружен в АО = Да.                                   Отражает сколько лидов относятся к продуктам ИБ или Аут и должны быть отгружены в АО (это база для расчёта дозвона и конверсии)
+   C3: шт
+   C4: Факт лиды, ИБ Аут , загр ао шт. = CALCULATE(COUNT( 'Leads'[firm_id] ),  / Leads[Продукт регистрации] in {"ИБ", "Аут"}, Leads[Должен быть отгружен в АО] = "Да", Leads[lead_gen_responsible] IN {"Коммерческая дирекция", "Коммерческая дирекция.Проект"}, Leads[direction] IN {"КЦ", "МД 2", "Freemium"} )
+   C5: lead_registration_history  - owox
+
+R6  <<< ЖЁЛТАЯ СТРОКА
+   [Y]C1: Брак по недозвону
+   [Y]C2: Лиды, которым не удалось дозвониться (гудки, тишина, закрыто системой).  Какие статусы звонка?
+   C3: шт / %
+   C4: Брак лида - Недозвон, шт. = CALCULATE(COUNT( 'Leads'[firm_id] ), Leads[Подкатегория] = "Брак лида - недозвон")
+   C6: Подкатегория =  / SWITCH( /     TRUE(), /  /       Leads[Категория лида] in {"Брак лида","Не целевой лид"} &&  Leads[Last_suitecrmopportunityid] <> BLANK()  && [LastEmotionalassessment] = "заинтересованный" , "Исключить",  /  /     Leads[Категория лида] in {"Брак лида"} &&  Leads[Last_suitecrmopportunityid] <> BLANK() && [crm_call_status] = "Недозвон" && [crm_call_sub_status] = "Недозвон (гудки, тишина)"  && [LastEmotionalassessment] = BLANK(), "Брак лида - недозвон",  /     /     Leads[Категория лида] in {"Брак лида"} && Leads[Last_suitecrmopportunityid] <> BLANK() && [crm_call_status] = "Закрыто системой" && [LastEmotionalassessment] = BLANK(), "Брак лида - недозвон",  /  /      Leads[Категория лида] in {"Брак лида","Не целевой лид"} && Leads[Last_suitecrmopportunityid] <> BLANK() && [crm_call_status] IN { "Отказ", "Не ЦА"} && [LastEmotionalassessment] IN { "раздражённый", "грубый/конфликтный", "негативный"  }, "Брак лида - не давал согласия",  /  /      Leads[Категория лида] in {"Брак лида","Не целевой лид"} &&  Leads[Last_suitecrmopportunityid] <> BLANK() && Leads[Last_suitecrmopportunityid] <> BLANK() && /     (        CONTAINSSTRING([LastSummary], "НПД") ||         CONTAINSSTRING([LastSummary], "самозанят") || /         CONTAINSSTRING([LastSummary], "закры") ||         CONTAINSSTRING([LastSummary], "ликвидац") || /         CONTAINSSTRING([LastSummary], "не беспокоить")    ), "Не целевой - ОПФ",  /  /           Leads[Категория лида] in {"Брак лида"} &&  Leads[Last_suitecrmopportunityid] <> BLANK() && [crm_call_status] in {"Закрыто системой"}  && [crm_call_sub_status] in {"Недозвон", "Неликвид"} && [LastEmotionalassessment] <> BLANK(), "Исключить",  /  /      Leads[Категория лида] in {"Брак лида"} &&  Leads[Last_suitecrmopportunityid] <> BLANK() && [crm_call_status] = "Недозвон"  && [LastEmotionalassessment] <> BLANK(), "Исключить",  /  /      Leads[Категория лида] in {"Брак лида"} && Leads[Last_suitecrmopportunityid] <> BLANK() && [crm_call_status] in {"Отказ"} && [LastEmotionalassessment] = BLANK()  && [crm_call_sub_status] in {"Отказ без объяснения причин","Негативная реакция"}, "Исключить",  /  /       Leads[Категория лида] in {"Брак лида"} && Leads[Last_suitecrmopportunityid] <> BLANK() && [crm_call_status] in {"Не ЦА"} , "Исключить",  /       /     "Не размечено" / )
+
+R7
+   C1: Брак – нет согласия / негатив
+   C2: Количество лидов, которые отказались от общения или проявили агрессию, что исключает дальнейшую работу. / Эмоциональный фон клиента: «грубый/конфликтный», «негативный», «раздраженный»
+   C3: шт / %
+   C4: Брак лида - не давал согласия, шт. = CALCULATE(COUNT( 'Leads'[firm_id] ), Leads[Подкатегория] = "Брак лида - не давал согласия")
+
+R8
+   C1: Не целевой – ОПФ
+   C2: Лиды не подходящие по организационно-правовой форме (самозанятый, ликвидация, НПД и т.п.)
+   C3: шт
+   C4: Не целевой - ОПФ, шт. = CALCULATE(COUNT( 'Leads'[firm_id] ), Leads[Подкатегория] = "Не целевой - ОПФ")
+
+R9
+   C1: Квалифицированные лиды (валовые)
+   C2: Количество преобразованных лидов, вне зависимости от даты регистрации лида.
+   C3: шт
+   C4: Преобразованы в crm (валовое), шт. =  / CALCULATE( /     COUNT(Leads[is_converded]), /     Leads[is_converded] = "да", /     Leads[lead_gen_responsible] IN {"Коммерческая дирекция", "Коммерческая дирекция.Проект"},           Leads[direction] IN {"КЦ", "МД 2", "Freemium"} ) / )
+   C5: lead_registration_history  - owox             Opportunities
+
+R10
+   C1: % квалификации
+   C2: Доля преобразованных лидов от всех лидов КД
+   C3: %
+   C4: Преобразованы в crm (валовое), % = DIVIDE( [Преобразованы в crm (валовое), шт.], [Лиды КД] )
+   C5: lead_registration_history  - owox             Opportunities
+
+R11
+   C1: Квалифицированные лиды (мес в мес)
+   C2: Количество Firm_id, преобразованных в месяц регистрации.
+   C3: шт
+   C4: Преобразованы в crm (мес в мес), шт. =  / CALCULATE( /     COUNT(Leads[firm_id]), /     Leads[converted_month] = "Да",   /  Leads[lead_gen_responsible] IN {"Коммерческая дирекция", "Коммерческая дирекция.Проект"},            /  Leads[direction] IN {"КЦ", "МД 2", "Freemium"} ) /
+   C5: lead_registration_history  - owox             Opportunities
+
+R12
+   C1: % квалификации (мес в мес)
+   C2: Конверсия в квалификацию с учётом временной привязки к дате регистрации лида
+   C3: %
+   C4: Преобразованы в crm (мес в мес), % = DIVIDE( [Преобразованы в crm (мес в мес), шт.], [Лиды КД] )
+   C5: lead_registration_history  - owox             Opportunities
+
+R13
+   C1: Продажи по дате лида
+   C2: Факт продаж тарифы (по дате лида), шт - Количество уникальных Firm_id с оплатами в месяц регистрации лида, где: / Тип оплаты: Новый / Не является: допродажей, опцией или разовой /  /  / Факт продаж (по дате лида), шт - Количество уникальных Firm_id с оплатами в месяц регистрации лида, где: / Тип оплаты: Новый / в том числе тарифы, допродажи, опции или разовые
+   C3: шт
+   C4: Факт продаж тарифы (по дате лида), руб. =  / CALCULATE(  /     SUM(Sales[Sum]),  /     Sales[PayType] = "Новый",  /     Sales[IsDeleted] <> TRUE(),  /     'Sales'[IsReselling] = FALSE(),  /     'Sales'[IsOneTime] = FALSE(),  /     'Sales'[IsOption] = 0  / )                                                                                                                            Факт продаж (по дате лида), руб. =  / CALCULATE(  /     SUM(Sales[Sum]),  /     Sales[PayType] = "Новый",  /     Sales[IsDeleted] <> TRUE() / )
+   C5: sales_report_row
+   C6: в Sales тип лида =  RELATED(Leads[Тип лида])
+
+R14
+   C1: Продажи по дате оплаты
+   C2: Факт продаж тарифы (по дате оплаты), шт. – количество уникальных Firm_id, учтенных по дате оплаты, где: / Тип оплаты: Новый / Не является: допродажей, опцией или разовой /  / Факт продаж (по дате оплаты), шт. – количество уникальных Firm_id, учтенных по дате оплаты, где: / Тип оплаты: Новый / в том числе тарифы, допродажи, опции или разовые
+   C3: шт
+   C4: Факт продаж тарифы (по дате оплаты), шт. =  / CALCULATE( /     DISTINCTCOUNT( 'Sales'[FirmId] ),  /     Sales[PayType] = "Новый",  /  Sales[IsDeleted] <> TRUE(),  /  'Sales'[IsReselling] = FALSE(),  /  'Sales'[IsOneTime] = FALSE(),  /  'Sales'[IsOption] = 0,  /     ALL(dimCalendar[Date])  / ) / Факт продаж (по дате оплаты), шт. =  / CALCULATE( /     DISTINCTCOUNT( 'Sales'[FirmId] ),  /     Sales[PayType] = "Новый",  /  Sales[IsDeleted] <> TRUE(),  /     ALL(dimCalendar[Date])  / )
+   C5: sales_report_row
+
+R15
+   C1: Продажи разовых услуг
+   C2: Кол-во уникальных Firm_id, где: / Тип оплаты: Новый / Является: разовой
+   C3: шт
+   C4: Факт продаж разовая, шт. =  / CALCULATE( /     DISTINCTCOUNT( 'Sales'[FirmId] ),  /  'Sales'[IsDeleted] <> TRUE(),  /  'Sales'[IsOneTime] = TRUE(),  /  'Sales'[PayType] = "Новый" /   / )
+   C5: sales_report_row
+
+R16
+   C1: Конверсия по дате лида
+   C2: Доля лидов, которые стали продажами в месяц регистрации. Считаем как отношение продаж по дате лида  к кол-ву лидов
+   C3: %
+   C4: Факт конверсия (по дате оплаты), % =  / DIVIDE( [Факт продаж тарифы (по дате лида), шт.], [Лиды КД )
+
+R17
+   C1: Конверсия по дате оплаты
+   C2: Доля лидов, которые стали продажами, Считаем как отношение продаж по дате оплаты  к кол-ву лидов
+   C3: %
+   C4: Факт конверсия (по дате оплаты), % =  / DIVIDE( [Факт продаж тарифы (по дате лида), шт.], [Лиды КД )
+
+R18
+   C1: Выручка по дате лида
+   C2: Факт продаж тарифы (по дате лида), руб -  сумма оплат по Firm_id в месяц регистрации лида, где: / Тип оплаты: Новый / Не является: допродажей, опцией или разовой /  / Факт продаж (по дате лида), руб -  сумма оплат по Firm_id в месяц регистрации лида, где: / Тип оплаты: Новый / в том числе тарифы, допродажи, опции или разовые
+   C3: руб
+   C4: Факт продаж тарифы (по дате лида), руб. =  / CALCULATE(  /     SUM(Sales[Sum]),  /     Sales[PayType] = ""Новый"",  /     Sales[IsDeleted] <> TRUE(),  /     'Sales'[IsReselling] = FALSE(),  /     'Sales'[IsOneTime] = FALSE(),  /     'Sales'[IsOption] = 0  / ) /  / Факт продаж (по дате лида), руб. =  / CALCULATE(  /     SUM(Sales[Sum]),  /     Sales[PayType] = ""Новый"",  /     Sales[IsDeleted] <> TRUE() / )
+   C5: sales_report_row
+
+R19
+   C1: Выручка по дате оплаты
+   C2: Факт продаж тарифы (по дате оплаты), руб. – сумма оплат по Firm_id, учтенных по дате оплаты, где: / Тип оплаты: Новый / Не является: допродажей, опцией или разовой /  / Факт продаж (по дате оплаты), руб. – сумма оплат по Firm_id, учтенных по дате оплаты, где: / Тип оплаты: Новый / в том числе тарифы, допродажи, опции или разовые
+   C3: руб
+   C4: Факт продаж тарифы (по дате оплаты), руб. =  / CALCULATE(  /     SUM( Sales[Sum] ), Sales[PayType] = "Новый",  /  Sales[IsDeleted] <> TRUE(),  /  'Sales'[IsReselling] = FALSE(),  /  'Sales'[IsOneTime] = FALSE(),  /  'Sales'[IsOption] = 0,  /     ALL(dimCalendar[Date]) / ) / Факт продаж (по дате оплаты), руб. =  / CALCULATE(  /     SUM( Sales[Sum] ), Sales[PayType] = "Новый",  /  Sales[IsDeleted] <> TRUE(),  /     ALL(dimCalendar[Date]) / )
+   C5: sales_report_row
+
+R20
+   C1: Выручка с разовых услуг
+   C2: Сумма оплат по  Firm_id, где: / Тип оплаты: Новый / Является: разовой
+   C3: руб
+   C4: Факт продаж разовая (по дате оплаты), руб =  / CALCULATE( /     SUM( Sales[Sum] ),  /     Sales[PayType] = "Новый",  /     'Sales'[IsDeleted] <> TRUE(),  /     'Sales'[IsOneTime] = TRUE()   )
+   C5: sales_report_row
+
+R21
+   C1: Выставленные счета (шт)
+   C2: Кол-во выставвленных счетов
+   C3: руб
+   C4: Выставленных счетов, шт (по дате счета) =  / CALCULATE( /     COUNT( InvoicePayment[Дата счета] ), /     USERELATIONSHIP( dimCalendar[Date], InvoicePayment[Дата счета] ) / ) / Выставленных счетов, шт (дата лида) =  / CALCULATE( /     COUNT( InvoicePayment[Дата счета] ) / )
+   C5: PaymentHistory  moedelo
+
+R22
+   C1: Выставленные счета (руб)
+   C2: Сумма по выставленным счетам
+   C3: шт
+   C4: Выставленных счетов, руб (по дате счета)=  / CALCULATE( /     SUM( InvoicePayment[PaymentSum] ), /     InvoicePayment[Дата счета] <> BLANK(), /     USERELATIONSHIP( dimCalendar[Date], InvoicePayment[Дата счета] ) / ) / Выставленных счетов, руб (по дате лида) =  / CALCULATE( /     SUM( InvoicePayment[PaymentSum] ), /     InvoicePayment[Дата счета] <> BLANK() / )
+   C5: PaymentHistory  moedelo
+
+R23
+   C1: Средний чек
+   C2: Средняя сумма оплаты за тариф в расчёте на одного клиента. Считаем как отношение Выручки  к  кол-ву продаж
+   C3: руб
+   C4: Факт средний чек тарифы (по дате оплаты), руб. кд =  /  DIVIDE([Факт продаж тарифы (по дате оплаты), руб. ],  /  [Факт продаж тарифы (по дате оплаты), шт.  ])
+   C5: sales_report_row
+
+R24
+   C1: Средний чек (без разовых для Аута и опций для ИБ)
+   C2: Средняя сумма оплаты в расчёте на одного клиента. Считаем как отношение Выручки  к  кол-ву продаж, но исключаем разовые для аута и опции (из знаменателя) для ИБ.
+   C3: руб
+   C4: средний чек  =  /  / VAR SelectedGroups = ALL(Sales[ProductGroupSample]) / VAR HasIB = "ИБ" IN SelectedGroups / VAR HasAut = "Аут" IN SelectedGroups / VAR IB_1 = CALCULATE( /     SUM(Sales[Sum]),  /     Sales[ProductGroupSample] = "ИБ",  /     Sales[PayType] = "Новый", /     USERELATIONSHIP('dimCalendar'[Date], 'Sales'[Date]) / ) /  / VAR AUT_1 = CALCULATE( /     SUM(Sales[Sum]),  /     Sales[ProductGroupSample] = "Аут",  /     Sales[IsOneTime] = FALSE(), /     Sales[PayType] = "Новый", /     USERELATIONSHIP('dimCalendar'[Date], 'Sales'[Date]) / ) / VAR Firms_IB = CALCULATETABLE( /     VALUES(Sales[FirmId]), /     Sales[ProductGroupSample] = "ИБ", /     Sales[PayType] = "Новый", /     Sales[IsOption] = 0, /     USERELATIONSHIP('dimCalendar'[Date], 'Sales'[Date]) / ) /  / VAR Firms_AUT = CALCULATETABLE( /     VALUES(Sales[FirmId]), /     Sales[ProductGroupSample] = "Аут", /     Sales[PayType] = "Новый", /     Sales[IsOneTime] = FALSE(), /     USERELATIONSHIP('dimCalendar'[Date], 'Sales'[Date]) / ) /  / VAR UniqueFirms = COUNTROWS(DISTINCT(UNION(Firms_IB, Firms_AUT))) / VAR CountIB = COUNTROWS(Firms_IB) / VAR CountAUT = COUNTROWS(Firms_AUT) / VAR CountBoth = COUNTROWS(DISTINCT(UNION(Firms_IB, Firms_AUT))) / VAR Result = / SWITCH(TRUE(), /     HasIB && NOT HasAut, /     DIVIDE(IB_1, Firms_IB  ), /     HasAut && NOT HasIB, /     DIVIDE(AUT_1, Firms_AUT), /     HasIB && HasAut, /     DIVIDE(AUT_1 + IB_1, UniqueFirms), /     BLANK() / ) / return Result
+   C5: sales_report_row
+
+R25
+   C1: Ср. кол-во оплаченных месяцев КД (тарифы)
+   C2: Мера отражает сколько месяцев в среднем оплачивает клиент (тариф)
+   C3: мес
+   C4: Среднее кол-во оплаченных месяцев =  / AVERAGEX( /     FILTER( /         Sales, /         Sales[IsDeleted] = FALSE() && /         Sales[IsReselling] = FALSE() && /         Sales[IsOption] = 0 && /         Sales[IsOneTime] = FALSE() && /         Sales[PayType] = "Новый" && /         Sales[SellerType] = "Основной" && /         Sales[ProductGroupSample] <> "Бюро" /     ), /     Sales[Month] / 365 * 12 / )
+
+R26
+   C1: ARPU
+   C2: Рассчитываем для продуктов оплаты ИБ и Аут и типом Новый, как отношение суммы платежей к оплаченному периоду
+   C3: %
+   C4: ARPU =  / VAR SelectedGroups = ALL(Sales[ProductGroupSample]) / VAR HasIB = "ИБ" IN SelectedGroups / VAR HasAut = "Аут" IN SelectedGroups / VAR ARPU_IB_1 = CALCULATE( /     SUM(Sales[Sum]),  /     Sales[ProductGroupSample] = "ИБ",  /     Sales[PayType] = "Новый", /     ALL(dimCalendar[Date]) / ) / VAR ARPU_IB_2 = CALCULATE( /     SUM('Sales'[Month]) / 365 * 12,  /     Sales[ProductGroupSample] = "ИБ",  /     Sales[PayType] = "Новый", /     Sales[IsOption] = 0,  /    ALL(dimCalendar[Date]) / ) / VAR ARPU_AUT_1 = CALCULATE( /     SUM(Sales[Sum]),  /     Sales[ProductGroupSample] = "Аут",  /     Sales[IsOneTime] = FALSE(), /     Sales[PayType] = "Новый", /     ALL(dimCalendar[Date]) / ) / VAR ARPU_AUT_2 = CALCULATE( /     SUM('Sales'[Month]) / 365 * 12,  /     Sales[ProductGroupSample] = "Аут",  /     Sales[IsOneTime] = FALSE(),  /     Sales[PayType] = "Новый", /     ALL(dimCalendar[Date]) / ) / VAR Result = / SWITCH(TRUE(), /     // Только ИБ /     HasIB && NOT HasAut , /     DIVIDE(ARPU_IB_1, ARPU_IB_2, BLANK()), /      /     // Только Аут /     HasAut && NOT HasIB, /     DIVIDE(ARPU_AUT_1, ARPU_AUT_2, BLANK()), /      /     // ИБ + Аут /     HasIB && HasAut, /     DIVIDE((ARPU_AUT_1 + ARPU_IB_1), (ARPU_AUT_2 + ARPU_IB_2), BLANK()), /      /     // Все остальные случаи (другие продукты или смешанные выборки) /     BLANK() / ) / return Result
+   C5: sales_report_row
+
+R27
+   C1: Скидка по дате лида
+   C2: Считаем для оплат в месяц регистрации лида с продуктом оплаты ИБ и Аут, определяем сумму скидки в рублях по направлениям - Пригласи друга, Лояльность, скидка менеджера (исключая позиции по продукту Бюро, возвраты, рассрочки, переходы), а также номинальную стоимость тарифа исходя из реального срока действия по направлениям. / Далее рассчитываем % скидки как отношение суммы скидки в руб к номинальной стоимости.
+   C3: руб
+   C4: Скидка (Общая), % (по дате опл) = CALCULATE( DIVIDE( [Скидка (Общая), руб],  / [Скидка. Продажи Ном из реал периода (Общая), руб]))                                                                                                                                                                                                                                                   Скидка. Продажи Ном из реал периода (Общая), руб =  / CALCULATE( / [Скидка. Продажи Ном из реал периода (Менеджер) для Общей, руб] +  / [Скидка. Продажи Ном из реал периода (Пригласи друга), руб] +  / [Скидка. Продажи Ном из реал периода (Лояльность), руб], / Sales[ProductGroupSample] in {"ИБ", "Аут"})
+   C5: sales_report_row
+
+R28
+   C1: Скидка по дате лида
+   C3: %
+   C4: Скидка, % (по дате лида) = CALCULATE( DIVIDE( [Скидка (Общая), руб],  / [Скидка. Продажи Ном из реал периода (Общая), руб]))
+   C5: sales_report_row
+
+R29
+   C1: Скидка по дате оплаты
+   C2: считаем для оплат с продуктом оплаты ИБ и Аут, определяем сумму скидки в рублях по направлениям - Пригласи друга, Лояльность, скидка менеджера (исключая позиции по продукту Бюро, возвраты, рассрочки, переходы), а также номинальную стоимость тарифа исходя из реального срока действия по направлениям. / Далее рассчитываем % скидки как отношение суммы скидки в руб к номинальной стоимости по дате оплаты.
+   C3: руб
+   C4: Скидка (Общая), руб=  / CALCULATE( / [Скидка (Менеджер) для Общей, руб] +  / [Скидка (Пригласи друга), руб] +  / [Скидка (Лояльность), руб], / Sales[ProductGroupSample] in {"ИБ", "Аут"})                                                                                                                                                                                                                   Скидка (Менеджер) для Общей, руб = SUM( Sales[discount_manager_base] ) / Скидка (Пригласи друга), руб = SUM( Sales[discount_friend] ) / Скидка (Лояльность), руб = SUM( Sales[discount_loyalty] )
+   C5: sales_report_row
+
+R30
+   C1: Скидка по дате оплаты
+   C3: %
+   C4: Скидка (Общая), % (по дате опл) = CALCULATE( DIVIDE( [Скидка (Общая), руб],  / [Скидка. Продажи Ном из реал периода (Общая), руб]), ALL(dimCalendar[Date]))                                                                                                                                                                                                                                                   Скидка. Продажи Ном из реал периода (Общая), руб =  / CALCULATE( / [Скидка. Продажи Ном из реал периода (Менеджер) для Общей, руб] +  / [Скидка. Продажи Ном из реал периода (Пригласи друга), руб] +  / [Скидка. Продажи Ном из реал периода (Лояльность), руб], / Sales[ProductGroupSample] in {"ИБ", "Аут"})
+   C5: sales_report_row
+
+R31  <<< ЖЁЛТАЯ СТРОКА
+   [Y]C1: CPL
+   [Y]C2: Стоимость привлечения одного лида (переменные расходы / лиды)  - КВ партнера+сертификаты / лиды (без прочих расходов)
+   C3: руб
+   C4: CPL =  /     DIVIDE( /     CALCULATE(SUM(cost[Значение]), cost[Статья расходов] in {"Комиссия партнера","Прочие расходы"}), /     [Лиды КД])
+   C5: lead_registration_history  - owox                                             файл xls с расходами
+   C6: CPL (₽) = Переменные расходы / Лиды
+
+R32
+   C1: CPLQ
+   C2: Стоимость одного квалифицированного лида (CPL / % квалификации)
+   C3: руб
+   C4: CPLq = [CPL]/[Преобразованы в crm (мес в мес), %]
+   C5: lead_registration_history  - owox                                             файл xls с расходами
+   C6: CPLq (₽) = CPL / Конв. квал. лид
+
+R33  <<< ЖЁЛТАЯ СТРОКА
+   [Y]C1: CPO
+   [Y]C2: Стоимость привлечения одного платящего клиента (расходы на ФОТ КД + комиссии + прочие / продажи). Показывает полную стоимость одной продажи. - без ФОТа и прочих расходов, только КВ партнера+сертификаты. =(КВ партнера+сертификаты)/кол-во продаж
+   C3: руб
+   C4: CPO = DIVIDE( /     CALCULATE(SUM(cost[Значение]), cost[Статья расходов] in {"ФОТ КД","Комиссия партнера", "Прочие расходы"}), /     [Факт продаж (по дате оплаты), шт.])
+   C5: lead_registration_history  - owox                                             файл xls с расходами
+   C6: CPO (₽) = Расходы итого / Продажи
+
+R34
+   C1: CAC
+   C2: Полные затраты на привлечение одного клиента (все расходы / продажи)
+   C3: %
+   C4: CAC = DIVIDE( /     (SUM(cost[Значение])), /     [Факт продаж (по дате оплаты), шт.])
+   C5: lead_registration_history  - owox                                             файл xls с расходами
+   C6: CAC (₽) = Расходы итого / Продажи
+
+R35
+   C1: Churn
+   C2: Отток клиентов (сколько перестали платить)
+   C3: %
+
+R36
+   C1: % переподписки
+   C2: Доля клиентов, которые продлили подписку
+   C3: %
+
+R37  <<< ЖЁЛТАЯ СТРОКА
+   [Y]C1: Upsell на АУТ
+   [Y]C2: Клиенты, перешедшие на АУТ с ИБ
+   [Y]C3: шт.
+
+R38  <<< ЖЁЛТАЯ СТРОКА
+   [Y]C1: Upsell на АУТ
+   [Y]C2: Сумма оплат по клиентам, перешедшим на АУТ с ИБ
+   C3: руб
+
+R39  <<< ЖЁЛТАЯ СТРОКА
+   [Y]C1: LTV
+   [Y]C2: Сколько денег приносит клиент за всё время жизни  =ARPU*LT
+   C3: %
+
+R40  <<< ЖЁЛТАЯ СТРОКА
+   [Y]C1: Gross margin
+   [Y]C2: Валовая прибыль
+   C3: %

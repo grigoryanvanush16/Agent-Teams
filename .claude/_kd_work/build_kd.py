@@ -57,6 +57,8 @@ title(ws,'КД метрики v1 (формат v58) — Каталог метр�
   'Все метрики Коммерческой дирекции (КД) по этапам сквозной воронки (I: лид→дозвон→квалификация→продажа→выручка), плюс юнит-экономика (II), удержание и LTV (III) и отчётность план/факт (IV). Цвет «Готовности»: зелёный - считаем сейчас (живой DAX); жёлтый - после новой витрины; синий - проверить в ClickHouse Кирилла; серый - нет данных (блокер). «Реализация в DWH»: авто в DWH / пересобрать / BI-сторона.',13)
 header(ws,4,['Группа','№','Метрика','Гранулярность','Описание','Формула (методология словами)','Ед.','Приор.','KPI','Статус','Готовность','Реализация в DWH','Источник / витрина'])
 ws.freeze_panes='C5'
+YELLOW_METRICS={6,33,35,37,41,43,44}  # уточнены жёлтой пометкой «Описание метрик_1»
+C_YELHL='FFF2CC'
 r=5
 for rec in D.CATALOG:
     if rec[0]==D.BAND:
@@ -68,14 +70,20 @@ for rec in D.CATALOG:
     if ready in READY_FILL: ws.cell(r,11).fill=fill(READY_FILL[ready])
     if impl in IMPL_FILL: ws.cell(r,12).fill=fill(IMPL_FILL[impl])
     if status=='GAP': ws.cell(r,10).fill=fill(C_ZEBRA)
+    if status=='Уточнить': ws.cell(r,10).fill=fill(C_YELHL)
+    if n in YELLOW_METRICS:                      # подсветка уточнённых жёлтым (№ + Метрика + Формула)
+        for cc in (2,3,6): ws.cell(r,cc).fill=fill(C_YELHL)
     r+=1
 band(ws,r,'Легенда «Готовность»:  Считаем сейчас · После новой витрины · CH Кирилла — проверить · Нет данных (блокер)',13,color=C_GROUP,size=10,fc=C_TITLE)
+r+=1
+band(ws,r,'Жёлтым выделены метрики, уточнённые в «Описание метрик_1»: CPL/CPO = (КВ партнёра + Сертификаты) без прочих и ФОТ; Upsell в АУТ = переход ИБ→АУТ (шт/руб); LTV = ARPU × LT; Gross margin = валовая прибыль; Брак-недозвон - уточнить статусы. Термины: КВ партнёра - комиссионное вознаграждение партнёра; Сертификаты - статья переменных расходов; LT - срок жизни клиента (мес).',13,color=C_YELHL,size=10,fc=C_TITLE)
+ws.row_dimensions[r].height=58
 
 # ===== Лист 2: Roadmap витрин =====
 ws=wb.create_sheet('Roadmap витрин')
-setcol(ws,{'A':26,'B':24,'C':6,'D':14,'E':40,'F':15,'G':56})
+setcol(ws,{'A':26,'B':24,'C':6,'D':14,'E':38,'F':14,'G':48,'H':16,'I':14,'J':30})
 title(ws,'Roadmap витрин КД',
-  'Какие витрины строим под каталог метрик КД. Приоритет 0 - ядро воронки и фундамент (лиды, продажи, расход). «Источник» - из каких таблиц собирается; «Зачем нужна» - какие метрики и дашборды питает.',7)
+  'Какие витрины строим под каталог метрик КД. Приоритет 0 - ядро воронки и фундамент (лиды, продажи, расход). «Источник» - из каких таблиц собирается; «Зачем нужна» - какие метрики и дашборды питает. Частота обновления - как в эталоне ИБ v58.',10)
 n_metrics=sum(1 for x in D.CATALOG if x[0]!=D.BAND)
 n_key=sum(1 for x in D.CATALOG if x[0]!=D.BAND and x[7]==0)
 n_road=len(D2.ROADMAP); n_nobuild=sum(1 for x in D2.ROADMAP if x[5]=='BI-сторона')
@@ -83,10 +91,11 @@ for i,(lbl,val) in enumerate([('Итого метрик в каталоге',n_m
         ('Остальные (приоритет 1)',n_metrics-n_key),('Витрин/таблиц в roadmap',n_road),
         ('Из них НЕ строим как витрины (BI-сторона)',n_nobuild)]):
     ws.cell(4+i,1,lbl).font=Font(bold=True); ws.cell(4+i,2,val)
-header(ws,10,['Витрина / таблица','Статус','Приор.','Ответственный','Источник (таблицы)','Реализация в DWH','Зачем нужна / что питает'])
+header(ws,10,['Витрина / таблица','Статус','Приор.','Ответственный','Источник (таблицы)','Реализация в DWH','Зачем нужна / что питает','Желаемая частота','Мин. допустимая','Инкрементальное обновление'])
 ws.freeze_panes='A11'; r=11
 for v,st,pr,ow,src,impl,purp in D2.ROADMAP:
-    datarow(ws,r,[v,st,pr,ow,src,impl,purp],center=(3,))
+    fw,fm,inc=D2.REFRESH.get(v,('','',''))
+    datarow(ws,r,[v,st,pr,ow,src,impl,purp,fw,fm,inc],center=(3,))
     if impl in IMPL_FILL: ws.cell(r,6).fill=fill(IMPL_FILL[impl])
     r+=1
 
@@ -99,17 +108,24 @@ ws.merge_cells('A6:A6'); band(ws,6,D2.CTE_SQL_TITLE,1); sqlblock(ws,7,D2.CTE_SQL
 
 # ===== Лист 4: Витрины и таблицы =====
 ws=wb.create_sheet('Витрины и таблицы')
-setcol(ws,{'A':24,'B':32,'C':44,'D':16,'E':6,'F':40})
+setcol(ws,{'A':24,'B':30,'C':40,'D':15,'E':6,'F':34,'G':38})
 title(ws,'Витрины и таблицы (структура по полям)',
-  'Для каждой витрины КД: заголовок с типом, SQL сборки и поля (с колонкой sql). Грануляции и бизнес-правила - из листа «CTE».',6)
+  'Для каждой витрины КД: заголовок с типом, SQL сборки и поля (колонки «вопросы» к DE и «sql» - как в эталоне ИБ v58). Грануляции и бизнес-правила - из листа «CTE».',7)
+import re as _re
 r=4
 for vit in D2.VITRINY:
-    band(ws,r,vit['title'],6); r+=1
+    band(ws,r,vit['title'],7); r+=1
     c=ws.cell(r,1,vit['table']); c.font=Font(bold=True,color=C_TITLE); r+=1
-    sqlblock(ws,r,vit['sql'],6); r+=1
-    header(ws,r,['поле','описание','комментарий','значения (пример)','ключ','sql']); r+=1
+    sqlblock(ws,r,vit['sql'],7); r+=1
+    header(ws,r,['поле','описание','комментарий','значения (пример)','ключ','вопросы','sql']); r+=1
+    m=_re.search(r'Таблица:\s*([A-Za-z0-9_]+)', vit['table']); tbl=m.group(1) if m else ''
+    qmap=D2.QUESTIONS.get(tbl,{})
     for f in vit['fields']:
-        datarow(ws,r,list(f),center=(5,)); r+=1
+        name,desc,comm,ex,key,sqlv=f
+        q=qmap.get(name,'')
+        datarow(ws,r,[name,desc,comm,ex,key,q,sqlv],center=(5,))
+        if q: ws.cell(r,6).fill=fill(C_YELHL)
+        r+=1
     r+=1
 
 # ===== Лист 5: ТЗ для разработки =====

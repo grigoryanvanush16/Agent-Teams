@@ -5,7 +5,7 @@
 # (vitrina, status, prior, owner, source, impl, purpose)
 ROADMAP = [
  ('int_leads_base','Нужна, не делалась',0,'DE',
-  'owox.lead_registration_history (Leads) + dialer.CallsAC (звонки АО) + crm_prod.Opportunities (преобразование, статусы)',
+  'marts._32_lead_info (лиды) + marts._33_opportunities (преобразование/контакт/брак) + marts._38_calls (дозвон АО)',
   'пересобрать',
   'Ядро лидов КД: firm_id × дата регистрации с типом лида, направлением, продуктом регистрации, флагами «загружен в АО», «дозвон», «преобразован», подкатегорией брака. База воронки КД. Питает «Сквозную отчётность», «Расшифровку по каналам КД», «Квалификацию по каналам КД».'),
  ('dm_kd_funnel','Нужна, не делалась',0,'DE',
@@ -13,7 +13,7 @@ ROADMAP = [
   'пересобрать',
   'Ядро сквозной воронки КД: дата лида × канал × продукт × тип лида - лиды→дозвон→квал→продажи→выручка, конверсии и юнит-экономика (CPL, CPLq, CPO, CAC) в одной грануляции. Сводит в одно то, что сейчас размазано по «Сквозной отчётности» и листам «исходник лиды/продажи».'),
  ('int_sales_base_kd','Нужна, не делалась',0,'DE',
-  'backoffice_Reports.sales_report_row (Sales) + привязка к лиду по firm_id',
+  'marts._23_sale (продажи) + привязка к лиду по firm_id',
   'пересобрать',
   'База платежей КД: платёж × позиция с продуктом, типом оплаты (Новый/Продление), is_option/is_one_time, скидками по 3 каналам (менеджер/Пригласи друга/Лояльность) и реальным периодом. Логика дисконтов и ARPU переиспользуется из эталона int_sales_base v58.'),
  ('dim_date','Нужна / переиспользовать',0,'DE',
@@ -27,13 +27,13 @@ ROADMAP = [
  ('dim_kd_cost','Нужна, не делалась',1,'DE',
   'CostMarketing (Google Sheet / файл xls с расходами): статья расходов × месяц × направление',
   'пересобрать',
-  'Расходы КД: ФОТ КД, комиссия партнёра, прочие расходы. Питает CPL, CPLq, CPO, CAC. Сейчас живёт в источнике дашборда отдельным файлом - вывести в общий слой.'),
+  'Расходы КД: КВ партнёра + Сертификаты (переменные, для CPL/CPO), ФОТ КД, Прочие. Питает CPL, CPLq, CPO, CAC. Жёлтая правка: CPL/CPO считаются только от КВ+сертификаты, ФОТ и прочие - лишь в CAC.'),
  ('dm_kd_invoices','Нужна, не делалась',1,'DE',
-  'moedelo.InvoicePayment (PaymentHistory) + dim_partner',
+  'marts._55_payment_history_ex / marts._33_opportunities.invoice_date + dim_partner',
   'пересобрать',
   'Выставленные счета: шт и руб по дате счёта и по дате лида, разрез по партнёрам. Питает «Динамику показателей → выставленные счета по партнёрам» и «Когорты счёт на оплату».'),
  ('dim_partner','Нужна, не делалась',1,'DE',
-  'backoffice.sales_report_row (regional_partner_name) + InvoicePayment',
+  'marts._23_sale (regional_partner_name) + marts._55_payment_history_ex',
   'авто в DWH',
   'Справочник партнёров (RegionalPartnerName), в т.ч. «Партнёр Мой бизнес». Разрез «партнёр» для счетов, ARPU и выручки. Питает дашборды «Партнёры», «Партнёр Мой бизнес».'),
  ('plan_kd_monthly','Нужна, не делалась',1,'DE + КД',
@@ -41,56 +41,61 @@ ROADMAP = [
   'пересобрать',
   'Месячный план КД по лидам/продажам/выручке и менеджерам. Питает блок план/факт (Факт/План на дату/% плана). Заменяет ручную сборку плана из Google-таблицы.'),
  ('dm_kd_cohort_conversion','Частично есть (модель в PBI)',1,'Кирилл / DE',
-  'owox.lead_registration_history + crm_prod.Opportunities (дата преобразования)',
+  'marts._32_lead_info + marts._33_opportunities (ca_change_date)',
   'пересобрать',
   'Когортная преобразованность лидов нарастающим итогом по дням дозревания (через 0/1/2/.../>7 дней). Дашборд «Квалификация и преобразование лида по каналам КД» уже есть - перенести логику из PBI в витрину.'),
  ('dm_kd_calls_status','Остаётся в PBI поверх dialer',2,'Кирилл',
-  'dialer.CallsAC + crm_prod (статусы/подстатусы звонков)',
+  'marts._38_calls + marts._45_asterisk_call (статусы/подстатусы звонков)',
   'BI-сторона',
   'Статусы и подстатусы звонков АО (КЦ Продаж БИЗ). Операционка телефонии, считается на стороне BI поверх dialer - в DWH КД не переносим.'),
  ('dm_kd_retention','Нужна, не делалась',2,'DE',
-  'backoffice.sales_report_row + событие продления (аналог int_sales_base ИБ/АУТ)',
+  'marts._23_sale + событие продления (аналог int_sales_base ИБ/АУТ)',
   'пересобрать',
-  'Удержание КД: churn, % переподписки, Upsell в АУТ, Upsell Сбербанк (WL), LTV. Сейчас метрик нет (GAP) - требуется событийная витрина продлений, как в эталоне v58.'),
+  'Удержание КД: churn, % переподписки, Upsell в АУТ (шт/руб = клиенты ИБ→АУТ и сумма их оплат), Upsell Сбербанк (WL), LTV = ARPU × LT (срок жизни), Gross margin. Сейчас метрик нет (GAP) - требуется событийная витрина продлений, как в эталоне v58.'),
 ]
 
 # ============== ЛИСТ 3: CTE ==============
 CTE_RULES = """-- Бизнес-правила сборки воронки КД (аналог листа CTE в ИБ метрики v58)
+-- ВСЁ собирается ВНУТРИ moedelo_marts (как эталон строит из _23_sale), а не из сырых owox/dialer/crm.
+-- Проверено на marts (май 2026): Лиды КД 9116, преобразовано (ca_status) 4639, дозвон (talk>0) 8744, продажи нов. тариф 103.
 --
--- 1. ЛИД КД. owox.lead_registration_history, is_deleted = false, RegistrationStatus ∉ ('4','5').
---    Лид КД: lead_gen_responsible ∈ ('Коммерческая дирекция','Коммерческая дирекция.Проект')
---            AND direction ∈ ('КЦ','МД 2','Freemium') AND Альфа-бандл = 'Нет'.
--- 2. ТИП ЛИДА (срез) - SWITCH по lead_gen_responsible + direction + Альфа-бандл:
---    Маркетинг*/Не распределено → 'Лиды маркетинга'; КД + {КЦ,МД2,Freemium} + бандл 'Нет' → 'Лиды КД';
---    тот же набор + бандл 'Да' → 'С прочих источников'; КД + direction 'WL' → 'WL';
---    lead_gen_responsible ∈ ('КД 2.0','КД 3.0') → 'C проектов КД'; иначе 'С прочих источников'.
--- 3. ФАКТ-ЛИДЫ (база дозвона/конверсии). Продукт регистрации ∈ ('ИБ','Аут') AND «Должен быть отгружен в АО» = Да.
---    registration_product (raw) для дозвона: ('BIZ','IB-ACC','OUT','OUT-ACC'); RegType ∉ (1,2) - исключаем лиды с бланков/физлиц.
--- 4. ДОЗВОН. dialer.CallsAC, статус звонка ∈ ('DROP','ANSWER','ABANDON','FAST_DROP'),
---    call_day + call_time ≥ user_registration_date + user_registration_time. Считаем уникальные firm_id.
--- 5. КВАЛИФИКАЦИЯ (преобразование). crm_prod.Opportunities: is_converted = 'да' (валовое) либо
---    converted_month = 'Да' (мес-в-мес: месяц преобразования = месяц регистрации лида).
--- 6. ПОДКАТЕГОРИЯ БРАКА - SWITCH по Категории лида + crm_call_status/sub_status + эмоц. оценке:
---    'Брак лида - недозвон' (гудки/тишина/закрыто системой), 'Брак лида - не давал согласия' (негатив),
---    'Не целевой - ОПФ' (НПД/самозанят/ликвидац...). Размечается в CRM.
--- 7. ПРОДАЖА. backoffice.sales_report_row → JOIN к лиду по firm_id. PayType = 'Новый' (operator_department='КЦ Продаж БИЗ').
---    IsOneTime=1 → разовая; IsOption по tariff_name ('%тариф%'→0,'%опция%'→1); тариф = IsReselling=0 AND IsOneTime=0 AND IsOption=0.
--- 8. ВЫРУЧКА = Sum (payment_sum, реально оплачено = full_sum − скидки), НЕ FullSum (прейскурант).
+-- 1. ЛИД КД. marts._32_lead_info (зеркало owox lead_info), is_deleted = 0.
+--    Лид КД: lead_gen_responsible ∈ (N'Коммерческая дирекция',N'Коммерческая дирекция.Проект')
+--            AND direction ∈ (N'КЦ',N'МД 2',N'Freemium'). Кириллица матчится на varchar/CP1251.
+--    ВНИМАНИЕ (GAP): «Альфа-бандл» в marts колонкой НЕ хранится (PBI calc-column). До переноса в DWH
+--    исключение бандла из «Лиды КД» не воспроизводится - нужно вынести правило бандла в источник/витрину.
+-- 2. ТИП ЛИДА (срез) - SWITCH по lead_gen_responsible + direction (+ Альфа-бандл, см. GAP п.1):
+--    Маркетинг*/Не распределено → 'Лиды маркетинга'; КД + {КЦ,МД2,Freemium} → 'Лиды КД';
+--    КД + direction 'WL' → 'WL'; lead_gen_responsible ∈ ('КД 2.0','КД 3.0') → 'C проектов КД'; иначе 'С прочих'.
+-- 3. ФАКТ-ЛИДЫ (база дозвона/конверсии). registration_product (raw в marts) ∈ ('BIZ','IB-ACC','IB-BIZ') → ИБ,
+--    ('OUT','OUT-ACC','OUT-BIZ') → Аут. «Должен быть отгружен в АО» = is_loaded (из extra_data/_33). Проверено: ИБ=IB-ACC, Аут=OUT-ACC.
+-- 4. ДОЗВОН. Прокси из marts._33_opportunities на уровне фирмы: max_call_talk_duration_seconds > 0
+--    (или call_attempt_count > 0 / was_contact = 1). Детальный дозвон по статусам - marts._38_calls.disposition
+--    ∈ ('DROP','ANSWER','ABANDON','FAST_DROP'), но в _38_calls нет firm_id (мост lead_external_id→firm).
+-- 5. КВАЛИФИКАЦИЯ (преобразование). marts._33_opportunities.ca_status = 1 (валовое);
+--    мес-в-мес: МЕСЯЦ(ca_change_date) = МЕСЯЦ(user_registration_date). JOIN o.md_firm_id_c = li.firm_id, o.deleted=0.
+-- 6. ПОДКАТЕГОРИЯ БРАКА - из marts._33_opportunities: decline_reason / reason_by_decline / decline_case_c + satisfaction_c (эмоц.):
+--    'Брак лида - недозвон', 'Брак лида - не давал согласия', 'Не целевой - ОПФ'.
+-- 7. ПРОДАЖА. marts._23_sale → JOIN к лиду по firm_id. PayType = 'Новый' (operator_department='КЦ Продаж БИЗ').
+--    is_one_time=1 → разовая; is_option по tariff_name (NOT LIKE '%опция%' → тариф); тариф = is_reselling=0 AND is_one_time=0 AND is_option=0.
+-- 8. ВЫРУЧКА = payment_sum (реально оплачено = full_sum − скидки), НЕ full_sum (прейскурант).
 -- 9. ДВЕ ДАТЫ. «По дате лида» - продажа агрегируется на месяц регистрации лида (когорта).
---    «По дате оплаты» - на дату платежа (ALL(dimCalendar[Date]) в DAX).
--- 10. РАСХОД (CostMarketing): статья ∈ ('Комиссия партнёра','Прочие расходы') - переменные; 'ФОТ КД' - постоянные.
---     CPL=перем./лиды, CPLq=CPL/%квал, CPO=(ФОТ+комиссия+прочие)/продажи, CAC=все_расходы/продажи.
+--    «По дате оплаты» - на payment_date (ALL(dimCalendar[Date]) в DAX).
+-- 10. РАСХОД (CostMarketing, вне marts). УТОЧНЕНО жёлтой пометкой «Описание метрик_1»:
+--     переменные для CPL/CPO = КВ партнёра (комиссионное вознаграждение) + Сертификаты (БЕЗ прочих и БЕЗ ФОТ).
+--     CPL = (КВ+серт)/лиды; CPLq = CPL/%квал; CPO = (КВ+серт)/продажи (без ФОТ и прочих); CAC = ВСЕ расходы/продажи.
+--     Правка относительно текущего DAX: там CPL = {Комиссия,Прочие}/лиды, CPO = {ФОТ,Комиссия,Прочие}/продажи.
 -- 11. СКИДКИ (3 канала, спека Кирилла, см. эталон int_sales_base v58): discount_manager / discount_friend / discount_loyalty,
 --     % = Скидка (Общая) ÷ номинальная стоимость из реального периода. Исключаются Бюро/возвраты/рассрочки/переходы."""
 
 CTE_SQL_TITLE = "Полная сборка ядра воронки dm_kd_funnel (по дате лида):"
 CTE_SQL = """DROP TABLE IF EXISTS dm_kd_funnel;
 
-WITH leads AS (                         -- лиды КД с типом и продуктом (источник owox)
+WITH leads AS (                         -- лиды КД с типом и продуктом (источник marts._32_lead_info)
   SELECT l.firm_id,
-         l.user_registration_date::date           AS lead_date,
+         l.lead_date,
          l.source_channel_group, l.source_channel,
-         l.registration_product                   AS product,
+         l.product,
          l.lead_type,                             -- из dim_lead_type (SWITCH)
          l.is_fact_lead,                          -- ИБ/Аут И «загружен в АО»
          l.is_called,                             -- есть звонок CallsAC (DROP/ANSWER/ABANDON/FAST_DROP)
@@ -100,7 +105,7 @@ WITH leads AS (                         -- лиды КД с типом и про
   WHERE l.lead_type = N'Лиды КД'
 ), pays AS (                            -- продажи КД, привязка к лиду по firm_id и месяцу регистрации
   SELECT s.firm_id,
-         s.payment_date::date AS pay_date,
+         s.payment_date AS pay_date,
          s.product,
          CASE WHEN s.is_one_time = 1 THEN N'разовая'
               WHEN s.is_option   = 1 THEN N'опция'
@@ -108,11 +113,11 @@ WITH leads AS (                         -- лиды КД с типом и про
          s.payment_sum
   FROM int_sales_base_kd s
   WHERE s.pay_type = N'Новый' AND s.is_deleted = 0
-), cost AS (                            -- расходы КД по месяцу/направлению (CostMarketing)
+), cost AS (                            -- расходы КД по месяцу/направлению (CostMarketing). Жёлтая правка: var_cost = КВ + сертификаты.
   SELECT month, direction,
-         SUM(CASE WHEN cost_item IN (N'Комиссия партнёра', N'Прочие расходы') THEN value ELSE 0 END) AS var_cost,
-         SUM(CASE WHEN cost_item = N'ФОТ КД' THEN value ELSE 0 END)                                  AS fot_kd,
-         SUM(value)                                                                                   AS cost_total
+         SUM(CASE WHEN cost_item IN (N'КВ партнёра', N'Сертификаты') THEN value ELSE 0 END) AS var_cost,  -- для CPL и CPO
+         SUM(CASE WHEN cost_item = N'ФОТ КД' THEN value ELSE 0 END)                          AS fot_kd,
+         SUM(value)                                                                          AS cost_total -- для CAC (все статьи)
   FROM dim_kd_cost GROUP BY month, direction
 )
 SELECT
@@ -144,20 +149,16 @@ VITRINY = [
   'table':'Таблица: int_leads_base  [расчётная (owox + dialer + crm)]',
   'sql':"""DROP TABLE IF EXISTS int_leads_base;
 
-WITH base AS (   -- лиды из owox (как в источнике Leads дашборда)
-  SELECT registration_id, firm_id,
-         registration_date::date                AS lead_date,
-         registration_data::json->>'RegistrationProduct'   AS registration_product,
-         channel_data::json->>'Direction'                  AS direction,
-         channel_data::json->>'LeadGenResponsible'         AS lead_gen_responsible,
-         channel_data::json->>'SourceChannelGroup'         AS source_channel_group,
-         channel_data::json->>'SourceChannel'              AS source_channel,
-         utm_data::json->>'PartnerId'                      AS partner_id,
-         extra_data::json->>'IsLoadedIqDialer'             AS is_loaded_dialer
-  FROM owox.lead_registration_history
-  WHERE is_deleted = false
-    AND (registration_data::json->>'RegistrationStatus' NOT IN ('4','5')
-         OR registration_data::json->>'RegistrationStatus' IS NULL)
+-- Источники - moedelo_marts (как эталон строит из _23_sale). Проверено на marts, май 2026.
+WITH base AS (   -- лиды из marts._32_lead_info (зеркало owox lead_info)
+  SELECT li.firm_id,
+         CAST(li.user_registration_date AS date)  AS lead_date,
+         li.registration_product,                 -- raw: IB-ACC / OUT-ACC / UU / SPS / WL-*
+         li.direction, li.lead_gen_responsible,
+         li.source_channel_group, li.source_channel,
+         li.partner_id, li.sale_stage, li.crm_refuse_reason
+  FROM _32_lead_info li
+  WHERE li.is_deleted = 0
 ), typed AS (    -- тип лида + продукт-категория + флаг факт-лида
   SELECT b.*,
     CASE
@@ -171,45 +172,45 @@ WITH base AS (   -- лиды из owox (как в источнике Leads да�
     END                                                              AS lead_type,
     CASE WHEN b.registration_product IN ('BIZ','IB-ACC','IB-BIZ') THEN N'ИБ'
          WHEN b.registration_product IN ('OUT','OUT-ACC','OUT-BIZ') THEN N'Аут'
-         ELSE N'Прочее' END                                         AS product,
-    CASE WHEN b.registration_product IN ('BIZ','IB-ACC','OUT','OUT-ACC')
-              AND b.is_loaded_dialer = 'true' THEN 1 ELSE 0 END     AS is_fact_lead
+         ELSE N'Прочее' END                                         AS product
   FROM base b
-), calls AS (    -- дозвон из dialer (первый результативный звонок после регистрации)
-  SELECT DISTINCT t.firm_id
-  FROM typed t
-  JOIN dialer.calls_ac c ON c.firm_id = t.firm_id
-  WHERE c.disposition IN ('DROP','ANSWER','ABANDON','FAST_DROP')
-    AND c.call_day + c.call_time >= t.lead_date
-), conv AS (     -- преобразование из crm (валовое и мес-в-мес)
-  SELECT o.firm_id,
-         MAX(CASE WHEN o.is_converted = N'да' THEN 1 ELSE 0 END)              AS is_converted_gross,
-         MAX(CASE WHEN o.converted_month = N'Да' THEN 1 ELSE 0 END)           AS is_converted_mom,
-         MAX(o.lead_subcategory)                                             AS lead_subcategory
-  FROM crm_prod.opportunities o GROUP BY o.firm_id
+), opp AS (      -- преобразование/дозвон/брак из marts._33_opportunities (агрегат по фирме)
+  SELECT o.md_firm_id_c                                            AS firm_id,
+         MAX(CASE WHEN o.ca_status = 1 THEN 1 ELSE 0 END)          AS is_converted_gross,
+         MAX(CASE WHEN o.ca_status = 1
+                   AND DATEDIFF(MONTH, o.registration_date_c, o.ca_change_date) = 0
+                  THEN 1 ELSE 0 END)                               AS is_converted_mom,
+         MAX(CASE WHEN o.max_call_talk_duration_seconds > 0 OR o.was_contact = 1
+                  THEN 1 ELSE 0 END)                               AS is_called,   -- дозвон-прокси (talk>0)
+         MAX(ISNULL(o.decline_reason, o.reason_by_decline))        AS lead_subcategory
+  FROM _33_opportunities o
+  WHERE o.deleted = 0
+  GROUP BY o.md_firm_id_c
 )
 SELECT t.*,
-       CASE WHEN ca.firm_id IS NOT NULL THEN 1 ELSE 0 END AS is_called,
-       ISNULL(cv.is_converted_gross,0)                    AS is_converted_gross,
-       ISNULL(cv.is_converted_mom,0)                      AS is_converted_mom,
-       cv.lead_subcategory
+       CASE WHEN t.product IN (N'ИБ',N'Аут') THEN 1 ELSE 0 END AS is_fact_lead,  -- + признак загрузки в АО
+       ISNULL(op.is_called,0)            AS is_called,
+       ISNULL(op.is_converted_gross,0)   AS is_converted_gross,
+       ISNULL(op.is_converted_mom,0)     AS is_converted_mom,
+       op.lead_subcategory
 INTO int_leads_base
 FROM typed t
-LEFT JOIN calls ca ON ca.firm_id = t.firm_id
-LEFT JOIN conv  cv ON cv.firm_id = t.firm_id;""",
+LEFT JOIN opp op ON op.firm_id = t.firm_id;
+-- GAP: «Альфа-бандл» (исключение из Лиды КД) - PBI calc-column, в marts нет. Дозвон по статусам
+-- (DROP/ANSWER/ABANDON/FAST_DROP) - через marts._38_calls (мост lead_external_id→firm), пока прокси из _33.""",
   'fields':[
-   ('firm_id','ид фирмы','FK на клиента/продажу','1070037','PK','firm_id'),
-   ('lead_date','дата регистрации лида','registration_date::date','2026-06-01','PK','registration_date::date'),
-   ('lead_type','тип лида','РАСЧЁТНОЕ - SWITCH (Лиды КД / маркетинга / WL / C проектов КД / С прочих)','Лиды КД','','CASE ... END'),
-   ('product','категория продукта','РАСЧЁТНОЕ - ИБ / Аут / Прочее из registration_product','ИБ','','CASE registration_product'),
-   ('source_channel_group','группа канала','raw owox.channel_data.SourceChannelGroup','КЦ','','source_channel_group'),
-   ('source_channel','канал','raw owox.channel_data.SourceChannel','Входящий','','source_channel'),
-   ('partner_id','ид партнёра','raw owox.utm_data.PartnerId','—','FK','partner_id'),
-   ('is_fact_lead','факт-лид (ИБ/Аут, загр. в АО)','РАСЧЁТНОЕ - продукт ИБ/Аут И is_loaded_dialer','1','','CASE WHEN ... THEN 1'),
-   ('is_called','дозвон','РАСЧЁТНОЕ - есть звонок CallsAC (DROP/ANSWER/ABANDON/FAST_DROP) после регистрации','1','','CASE WHEN calls.firm_id IS NOT NULL'),
-   ('is_converted_gross','преобразован валово','РАСЧЁТНОЕ - crm is_converted=да','1','','MAX(CASE WHEN is_converted=да)'),
-   ('is_converted_mom','преобразован мес-в-мес','РАСЧЁТНОЕ - crm converted_month=Да','1','','MAX(CASE WHEN converted_month=Да)'),
-   ('lead_subcategory','подкатегория брака','РАСЧЁТНОЕ в CRM - Брак недозвон / не давал согласия / Не целевой ОПФ','Брак лида - недозвон','','lead_subcategory'),
+   ('firm_id','ид фирмы','_32_lead_info.firm_id = _33_opportunities.md_firm_id_c','1070037','PK','firm_id'),
+   ('lead_date','дата регистрации лида','CAST(user_registration_date AS date)','2026-06-01','PK','user_registration_date'),
+   ('lead_type','тип лида','РАСЧЁТНОЕ - SWITCH (Лиды КД / маркетинга / WL / C проектов КД / С прочих). GAP: без Альфа-бандла','Лиды КД','','CASE ... END'),
+   ('product','категория продукта','РАСЧЁТНОЕ - ИБ (IB-ACC/IB-BIZ/BIZ) / Аут (OUT-*) / Прочее','ИБ','','CASE registration_product'),
+   ('source_channel_group','группа канала','raw _32_lead_info.source_channel_group','КЦ','','source_channel_group'),
+   ('source_channel','канал','raw _32_lead_info.source_channel','Входящий','','source_channel'),
+   ('partner_id','ид партнёра','raw _32_lead_info.partner_id','—','FK','partner_id'),
+   ('is_fact_lead','факт-лид (ИБ/Аут, в АО)','РАСЧЁТНОЕ - продукт ИБ/Аут (+ признак загрузки в АО)','1','','CASE WHEN product IN (ИБ,Аут)'),
+   ('is_called','дозвон','РАСЧЁТНОЕ - _33_opportunities.max_call_talk_duration_seconds>0 OR was_contact=1','1','','MAX(CASE WHEN talk>0 OR was_contact=1)'),
+   ('is_converted_gross','преобразован валово','РАСЧЁТНОЕ - _33_opportunities.ca_status=1','1','','MAX(CASE WHEN ca_status=1)'),
+   ('is_converted_mom','преобразован мес-в-мес','РАСЧЁТНОЕ - ca_status=1 И месяц(ca_change_date)=месяц(регистрации)','1','','DATEDIFF(MONTH,reg,ca_change_date)=0'),
+   ('lead_subcategory','подкатегория брака','РАСЧЁТНОЕ - _33_opportunities.decline_reason / reason_by_decline','Недозвон','','ISNULL(decline_reason,reason_by_decline)'),
   ]},
  {'title':'Витрина 2. Сквозная воронка КД: лиды→дозвон→квалификация→продажи→выручка с экономикой. Ядро.',
   'table':'Таблица: dm_kd_funnel  [расчётная (int_leads_base + int_sales_base_kd + dim_kd_cost)]',
@@ -228,46 +229,44 @@ LEFT JOIN conv  cv ON cv.firm_id = t.firm_id;""",
    ('sales_tariff_by_lead','продажи тарифы (по дате лида)','оплаты-тарифы в месяц регистрации лида','140','','COUNT(DISTINCT CASE WHEN sale_type=тариф AND месяц совпал)'),
    ('revenue_tariff_by_lead','выручка тарифы (по дате лида)','SUM payment_sum тарифов в месяц лида','9446061','','SUM(CASE WHEN sale_type=тариф AND месяц совпал)'),
    ('conv_by_lead','конверсия по дате лида','РАСЧЁТНОЕ: sales_tariff_by_lead / leads','0.085','','sales_tariff_by_lead / NULLIF(leads,0)'),
-   ('cpl','CPL (расч.)','РАСЧЁТНОЕ: переменные расходы / лиды','620','','var_cost / NULLIF(leads,0)'),
+   ('cpl','CPL (расч.)','РАСЧЁТНОЕ: (КВ+сертификаты) / лиды. Жёлтая правка - без прочих расходов','620','','var_cost / NULLIF(leads,0)'),
    ('cplq','CPLq (расч.)','РАСЧЁТНОЕ: CPL / % квалификации','1680','','cpl / NULLIF(qual_rate,0)'),
-   ('cpo','CPO (расч.)','РАСЧЁТНОЕ: (ФОТ+комиссия+прочие) / продажи','7300','','(fot_kd+var_cost) / NULLIF(sales,0)'),
-   ('cac','CAC (расч.)','РАСЧЁТНОЕ: все расходы / продажи','9100','','cost_total / NULLIF(sales,0)'),
+   ('cpo','CPO (расч.)','РАСЧЁТНОЕ: (КВ+сертификаты) / продажи. Жёлтая правка - без ФОТ и прочих','7300','','var_cost / NULLIF(sales,0)'),
+   ('cac','CAC (расч.)','РАСЧЁТНОЕ: ВСЕ расходы / продажи','9100','','cost_total / NULLIF(sales,0)'),
   ]},
  {'title':'Витрина 3. База платежей КД: продукт, тип оплаты, опции/разовые, скидки по 3 каналам, реальный период.',
-  'table':'Таблица: int_sales_base_kd  [расчётная (sales_report_row + дисконты как в int_sales_base v58)]',
+  'table':'Таблица: int_sales_base_kd  [расчётная (marts._23_sale + дисконты как в int_sales_base v58)]',
   'sql':"""DROP TABLE IF EXISTS int_sales_base_kd;
--- Источник Sales дашборда: backoffice_Reports.sales_report_row с фильтрами
+-- Источник - marts._23_sale (та же таблица, что и эталон ИБ v58). Фильтры как в источнике Sales дашборда:
 --   payment_method NOT IN ('freemium','oneTime_tech','granted for partner','DeloBank','rnkbpay','tech_pay','profbuh'),
---   is_deleted = false, payment_date >= '2025-01-01', PayMethod NOT IN ('Creator','AutoPay').
--- Расчётные поля и блок дисконтов (discount_manager / discount_friend / discount_loyalty, real_full_sum)
--- переиспользуются 1:1 из эталона int_sales_base v58 (лист «CTE» файла ИБ метрики v58).
+--   is_deleted = 0. Блок дисконтов (discount_manager/friend/loyalty, real_full_sum) переиспользуется
+--   1:1 из эталона int_sales_base v58 (лист «CTE» файла ИБ метрики v58). Проверено на marts (май 2026): 103 нов. тарифа / 3,12 млн ₽.
 SELECT
   s.firm_id, s.payment_id, s.position_number,
-  s.payment_date::date  AS payment_date,
-  s.start_date, s.end_date,
+  s.payment_date, s.start_date, s.end_date,
   s.product_group,
   CASE WHEN s.product_group IN ('BIZ','IB-ACC','IB-BIZ') THEN N'ИБ'
        WHEN s.product_group IN ('OUT','OUT-ACC','OUT-BIZ') THEN N'Аут'
        WHEN s.product_group = 'SPS' THEN N'Бюро' ELSE N'Прочее' END        AS product,
-  CASE WHEN s.tariff_name ILIKE '%опция%' THEN 1 ELSE 0 END                AS is_option,
+  CASE WHEN s.tariff_name LIKE N'%опция%' THEN 1 ELSE 0 END                AS is_option,
   s.is_one_time, s.is_reselling, s.is_deleted,
   CASE WHEN s.operator_department = N'КЦ Продаж БИЗ' THEN N'Новый'
-       WHEN s.has_prev_paid_subscription OR s.operator_department = N'Сопровождение УУ' THEN N'Продление'
+       WHEN s.has_prev_paid_subscription = 1 OR s.operator_department = N'Сопровождение УУ' THEN N'Продление'
        ELSE N'Новый' END                                                  AS pay_type,
   s.payment_sum, s.full_sum, s.normative_period,
   s.regional_partner_name, s.manager, s.operator_department,
   s.loyalty_program_month, s.friendinvite_discount, s.promo_code
 INTO int_sales_base_kd
-FROM backoffice.sales_report_row s
-WHERE s.is_deleted = false
+FROM _23_sale s
+WHERE s.is_deleted = 0
   AND s.payment_method NOT IN ('freemium','oneTime_tech','granted for partner','DeloBank','rnkbpay','tech_pay','profbuh');""",
   'fields':[
    ('firm_id','ид фирмы','FK на лид (int_leads_base.firm_id)','1070037','PK','firm_id'),
-   ('payment_id','ид платежа','raw sales_report_row','16284347','PK','payment_id'),
+   ('payment_id','ид платежа','raw _23_sale','16284347','PK','payment_id'),
    ('position_number','позиция в платеже','raw','1','PK','position_number'),
    ('payment_date','дата оплаты','payment_date::date','2026-06-06','','payment_date'),
    ('product','категория продукта','РАСЧЁТНОЕ - ИБ/Аут/Бюро/Прочее','ИБ','','CASE product_group'),
-   ('is_option','опция (1) / тариф (0)','РАСЧЁТНОЕ - tariff_name ILIKE %опция%','0','','CASE WHEN tariff_name ILIKE %опция%'),
+   ('is_option','опция (1) / тариф (0)','РАСЧЁТНОЕ - tariff_name LIKE %опция%','0','','CASE WHEN tariff_name LIKE %опция%'),
    ('is_one_time','разовая услуга','raw (с поправками на УУ-внедрение и консультации)','0','','is_one_time'),
    ('pay_type','тип оплаты','РАСЧЁТНОЕ - Новый / Продление по operator_department','Новый','','CASE operator_department'),
    ('payment_sum','сумма оплаты, руб','raw (реально оплачено)','6270','','payment_sum'),
@@ -280,10 +279,11 @@ WHERE s.is_deleted = false
   'table':'Таблица: dim_kd_cost  [справочник (выгрузка файла расходов CostMarketing)]',
   'sql':"""DROP TABLE IF EXISTS dim_kd_cost;
 -- Источник: CostMarketing (Google Sheet / файл xls с расходами КД).
+-- Статьи (жёлтая правка «Описание метрик_1»): КВ партнёра + Сертификаты = переменные (CPL/CPO); ФОТ КД и Прочие - отдельно (только в CAC).
 SELECT
   date_trunc('month', period)::date AS month,
   direction,
-  cost_item,                              -- 'ФОТ КД' / 'Комиссия партнёра' / 'Прочие расходы'
+  cost_item,                              -- 'КВ партнёра' / 'Сертификаты' / 'ФОТ КД' / 'Прочие расходы'
   SUM(value) AS value
 INTO dim_kd_cost
 FROM stg_kd_cost
@@ -291,30 +291,36 @@ GROUP BY date_trunc('month', period)::date, direction, cost_item;""",
   'fields':[
    ('month','месяц','date_trunc(month, period)','2026-06-01','PK','date_trunc(month,period)'),
    ('direction','направление КД','raw','КЦ','PK','direction'),
-   ('cost_item','статья расходов','ФОТ КД / Комиссия партнёра / Прочие расходы','Комиссия партнёра','PK','cost_item'),
+   ('cost_item','статья расходов','КВ партнёра (комиссионное вознагр.) / Сертификаты / ФОТ КД / Прочие расходы','КВ партнёра','PK','cost_item'),
    ('value','сумма, руб','SUM(value)','450000','','SUM(value)'),
-   ('var_cost','переменные (расч.)','РАСЧЁТНОЕ на агрегате: комиссия партнёра + прочие','520000','','SUM CASE IN (комиссия,прочие)'),
-   ('fot_kd','ФОТ КД (расч.)','РАСЧЁТНОЕ: статья = ФОТ КД','1200000','','SUM CASE = ФОТ КД'),
+   ('var_cost','переменные (расч.)','РАСЧЁТНОЕ: КВ партнёра + Сертификаты (для CPL и CPO). Жёлтая правка - без прочих и ФОТ','520000','','SUM CASE IN (КВ,Сертификаты)'),
+   ('fot_kd','ФОТ КД (расч.)','РАСЧЁТНОЕ: статья = ФОТ КД (только в CAC)','1200000','','SUM CASE = ФОТ КД'),
+   ('cost_total','все расходы (расч.)','РАСЧЁТНОЕ: SUM(value) всех статей - для CAC','1900000','','SUM(value)'),
   ]},
  {'title':'Витрина 5. Выставленные счета КД: шт и руб по дате счёта/лида, разрез по партнёрам.',
-  'table':'Таблица: dm_kd_invoices  [расчётная (InvoicePayment + dim_partner)]',
+  'table':'Таблица: dm_kd_invoices  [расчётная (marts._33_opportunities.invoice_date + dim_partner)]',
   'sql':"""DROP TABLE IF EXISTS dm_kd_invoices;
--- Источник InvoicePayment дашборда: mssql02.moedelo (PaymentHistory), счета с датой счёта.
+-- Факт выставления счёта по фирме - marts._33_opportunities.invoice_date (проверено: 122 фирмы КД с invoice_date за май 2026).
+-- Сумма счёта и разрез по партнёру: marts._55_payment_history_ex (BillNumber/BillDate, но БЕЗ firm_id/суммы)
+-- ИЛИ кастомный запрос InvoicePayment к moedelo (mssql02, PaymentHistory) - в нём есть PaymentSum и партнёр.
+-- GAP: marts-native суммы счёта по фирме нет, нужен JOIN _55 ↔ _23_sale по PrimaryPaymentId либо запрос к moedelo.
 SELECT
-  ip.bill_date::date     AS invoice_date,
-  ip.lead_date::date     AS lead_date,
-  ip.partner_name,
-  COUNT(ip.bill_number)                                  AS invoices_cnt,
-  SUM(CASE WHEN ip.bill_date IS NOT NULL THEN ip.payment_sum ELSE 0 END) AS invoices_sum
+  CAST(o.invoice_date AS date)               AS invoice_date,
+  CAST(li.user_registration_date AS date)    AS lead_date,
+  s.regional_partner_name                    AS partner_name,
+  COUNT(DISTINCT o.md_firm_id_c)             AS invoices_cnt
 INTO dm_kd_invoices
-FROM moedelo.invoice_payment ip
-GROUP BY ip.bill_date::date, ip.lead_date::date, ip.partner_name;""",
+FROM _33_opportunities o
+JOIN _32_lead_info li ON li.firm_id = o.md_firm_id_c
+LEFT JOIN _23_sale s ON s.firm_id = o.md_firm_id_c
+WHERE o.deleted = 0 AND o.invoice_date IS NOT NULL
+GROUP BY CAST(o.invoice_date AS date), CAST(li.user_registration_date AS date), s.regional_partner_name;""",
   'fields':[
-   ('invoice_date','дата счёта','bill_date::date','2026-06-03','PK','bill_date'),
-   ('lead_date','дата лида','связь со счётом по лиду (альтернативная привязка к календарю)','2026-06-01','PK','lead_date'),
-   ('partner_name','партнёр','из dim_partner / regional_partner_name','Мой бизнес','PK','partner_name'),
-   ('invoices_cnt','счетов, шт','COUNT(bill_number)','320','','COUNT(bill_number)'),
-   ('invoices_sum','счетов, руб','SUM(payment_sum) где дата счёта не пуста','4800000','','SUM(payment_sum)'),
+   ('invoice_date','дата счёта','CAST(_33_opportunities.invoice_date AS date)','2026-06-03','PK','invoice_date'),
+   ('lead_date','дата лида','_32_lead_info.user_registration_date (альтернативная привязка к календарю)','2026-06-01','PK','user_registration_date'),
+   ('partner_name','партнёр','_23_sale.regional_partner_name / dim_partner','Мой бизнес','PK','regional_partner_name'),
+   ('invoices_cnt','счетов (фирм), шт','COUNT(DISTINCT md_firm_id_c) с invoice_date','122','','COUNT(DISTINCT md_firm_id_c)'),
+   ('invoices_sum','счетов, руб','GAP: суммы в marts нет на уровне фирмы - из moedelo InvoicePayment (PaymentSum)','4800000','','SUM(PaymentSum) - moedelo'),
   ]},
  {'title':'Витрина 6. Когортная преобразованность лидов КД нарастающим итогом по дням дозревания.',
   'table':'Таблица: dm_kd_cohort_conversion  [расчётная (когорта лида × день преобразования)]',
@@ -324,16 +330,17 @@ WITH leads AS (
   SELECT firm_id, lead_date, source_channel_group, product
   FROM int_leads_base WHERE lead_type = N'Лиды КД'
 ), conv AS (
-  SELECT firm_id, conversion_date::date AS conv_date
-  FROM crm_prod.opportunities WHERE is_converted = N'да'
+  SELECT md_firm_id_c AS firm_id, CAST(MIN(ca_change_date) AS date) AS conv_date
+  FROM _33_opportunities WHERE deleted = 0 AND ca_status = 1
+  GROUP BY md_firm_id_c
 )
 SELECT
   l.lead_date, l.source_channel_group, l.product,
   COUNT(DISTINCT l.firm_id)                                                          AS leads_in_cohort,
-  COUNT(DISTINCT CASE WHEN c.conv_date - l.lead_date = 0 THEN l.firm_id END)         AS conv_d0,
-  COUNT(DISTINCT CASE WHEN c.conv_date - l.lead_date BETWEEN 1 AND 7 THEN l.firm_id END) AS conv_d1_7,
-  COUNT(DISTINCT CASE WHEN c.conv_date - l.lead_date > 7 THEN l.firm_id END)         AS conv_d7plus,
-  COUNT(DISTINCT CASE WHEN c.conv_date IS NOT NULL THEN l.firm_id END)::float
+  COUNT(DISTINCT CASE WHEN DATEDIFF(DAY, l.lead_date, c.conv_date) = 0 THEN l.firm_id END)         AS conv_d0,
+  COUNT(DISTINCT CASE WHEN DATEDIFF(DAY, l.lead_date, c.conv_date) BETWEEN 1 AND 7 THEN l.firm_id END) AS conv_d1_7,
+  COUNT(DISTINCT CASE WHEN DATEDIFF(DAY, l.lead_date, c.conv_date) > 7 THEN l.firm_id END)         AS conv_d7plus,
+  CAST(COUNT(DISTINCT CASE WHEN c.conv_date IS NOT NULL THEN l.firm_id END) AS float)
     / NULLIF(COUNT(DISTINCT l.firm_id),0)                                            AS conv_rate_cum
 INTO dm_kd_cohort_conversion
 FROM leads l LEFT JOIN conv c ON c.firm_id = l.firm_id
@@ -374,9 +381,9 @@ FROM stg_kd_plans;""",
 # (#, задача, ответственный, витрина есть?, что построить, какие метрики, источник)
 TZ = [
  (1,'Ядро int_leads_base','DE','Нет',
-  'Витрина лидов КД: owox.lead_registration_history + флаги дозвона (dialer.CallsAC) + преобразования и подкатегории брака (crm_prod.Opportunities). Тип лида - SWITCH (Лиды КД / маркетинга / WL / проекты / прочее).',
+  'Витрина лидов КД из marts: _32_lead_info (лид) + _33_opportunities (преобразование ca_status, дозвон-прокси, брак) + _38_calls (дозвон по статусам). Тип лида - SWITCH (Лиды КД / маркетинга / WL / проекты / прочее).',
   'Лиды КД, Тип лида, Факт-лиды в АО, Дозвон, % дозвона, Квал-лиды, брак',
-  'owox (lead_registration_history) + dialer (CallsAC) + crm_prod (Opportunities). Связь по firm_id.'),
+  'marts: _32_lead_info + _38_calls + _33_opportunities. Связь по md_firm_id_c = firm_id.'),
  (2,'Ядро dm_kd_funnel','DE','Нет',
   'Сквозная витрина воронки КД: дата лида × канал × продукт - лиды→дозвон→квал→продажи→выручка + экономика (CPL/CPLq/CPO/CAC) в одной грануляции.',
   'Вся воронка КД + конверсии + юнит-экономика',
@@ -384,11 +391,11 @@ TZ = [
  (3,'База платежей int_sales_base_kd','DE','Источник есть (Sales в PBI), витрины нет',
   'Витрина платежей КД на sales_report_row с расчётом типа оплаты, опций/разовых и блока скидок (3 канала). Переиспользовать логику дисконтов и реального периода из эталона int_sales_base v58.',
   'Продажи/Выручка тарифы и итого, Средний чек, ARPU, Скидки',
-  'backoffice_Reports.sales_report_row + спека дисконтов Кирилла (как в ИБ v58).'),
+  'marts._23_sale + спека дисконтов Кирилла (как в ИБ v58).'),
  (4,'Витрина расходов dim_kd_cost','DE + КД','Нет',
-  'dim_kd_cost из файла расходов CostMarketing: статья (ФОТ КД / комиссия партнёра / прочие) × месяц × направление. Вывести расход в общий слой из источника дашборда.',
-  'Переменные расходы, ФОТ КД, CPL, CPLq, CPO, CAC',
-  'CostMarketing (Google Sheet / xls). Получить актуальный файл расходов у руководителя КД.'),
+  'dim_kd_cost из файла расходов CostMarketing: статья (КВ партнёра / Сертификаты / ФОТ КД / Прочие) × месяц × направление. Жёлтая правка: переменные для CPL/CPO = КВ + сертификаты (без прочих и ФОТ); ФОТ и прочие - только в CAC. Уточнить у КД состав статьи «Сертификаты».',
+  'Переменные расходы (КВ+серт), ФОТ КД, CPL, CPLq, CPO, CAC',
+  'CostMarketing (Google Sheet / xls). Получить актуальный файл расходов и состав статей у руководителя КД.'),
  (5,'Дедупликация мер воронки','DE / Аналитик','Частично (меры есть в дашбордах)',
   'Свести дубли мер «Сквозной отчётности» (две версии «по дате лида»/«по дате оплаты», WL-копии) к базовым с time-intelligence. Единые [Лиды КД]/[Продажи]/[Выручка]/[Конверсия].',
   'Единые меры воронки вместо десятков копий',
@@ -396,11 +403,11 @@ TZ = [
  (6,'Когортная преобразованность','Кирилл / DE','Частично (модель в PBI)',
   'dm_kd_cohort_conversion: преобразование лидов нарастающим итогом по дням (0/1-7/>7 дн). Перенести логику дашборда «Квалификация и преобразование лида по каналам КД» из PBI в витрину.',
   'Преобразованность накопленная %, преобразование через N дней',
-  'owox.lead_registration_history + crm_prod.Opportunities (дата преобразования).'),
+  'marts._32_lead_info + marts._33_opportunities (ca_change_date).'),
  (7,'Счета и партнёры','DE','Нет',
   'dm_kd_invoices (InvoicePayment) + dim_partner (regional_partner_name). Счета шт/руб по дате счёта и дате лида, ARPU и выручка в разрезе партнёров (Партнёр Мой бизнес).',
   'Выставленные счета шт/руб, счета и ARPU по партнёрам',
-  'moedelo.InvoicePayment (PaymentHistory) + backoffice.sales_report_row.regional_partner_name.'),
+  'marts._55_payment_history_ex / _33_opportunities.invoice_date + marts._23_sale.regional_partner_name.'),
  (8,'План КД','DE + КД','Нет',
   'plan_kd_monthly: месячный план по лидам/продажам/выручке и менеджерам для расчёта Факт/План на дату и % плана. Заменяет ручную сборку из Google-таблицы.',
   'Факт на дату, План на дату, % выполнения плана',
@@ -408,11 +415,11 @@ TZ = [
  (9,'Событийная витрина удержания','DE','Нет (GAP)',
   'dm_kd_retention: построить событие продления для клиентов КД (аналог int_sales_base ИБ/АУТ v58) для расчёта churn, % переподписки, Upsell в АУТ/Сбербанк, LTV. Сейчас этих метрик нет.',
   'Churn, % переподписки, Upsell АУТ, Upsell Сбербанк (WL), LTV, Gross margin',
-  'backoffice.sales_report_row + LEAD по платежам (логика prolong_success v58).'),
+  'marts._23_sale + LEAD по платежам (логика prolong_success v58).'),
  (10,'Статусы звонков АО','Кирилл','Остаётся в PBI',
   'Уточнить словарь статусов/подстатусов звонков dialer для дашборда «Статусы и подстатусы звонков». Считается на стороне BI поверх dialer - в DWH КД не переносим.',
   'Статусы и подстатусы звонков, % дозвона по операторам',
-  'dialer.CallsAC + crm_prod. Документация по статусам колл-центра.'),
+  'marts._38_calls + marts._45_asterisk_call. Документация по статусам колл-центра.'),
 ]
 
 # ============== ЛИСТ 6: Реестр дашбордов ==============
@@ -421,42 +428,42 @@ DASH = [
  ('Сквозная отчётность','Power BI','Сквозная отчётность','Да',
   'Главный сквозной отчёт КД: воронка лиды→дозвон→квал→продажи→выручка (листы «исходник лиды»/«исходник продажи»), конверсия источников, динамика дня КЦ, партнёры, оплаченные месяцы, спец. тарифы, воронка по лидам, когорты «счёт на оплату»',
   'Лиды КД, Дозвон, % дозвона, Квал-лиды, Продажи, Выручка, Конверсия, ARPU, Средний чек, План/Факт',
-  'owox (Leads), backoffice (Sales), dialer (CallsAC), moedelo (InvoicePayment), Plans, CostMarketing',
+  'marts (_32_lead_info, _23_sale, _38_calls, _33_opportunities, _55_payment_history_ex), Plans, CostMarketing',
   'пересобрать'),
  ('Расшифровка по каналам КД','Power BI','Сквозная отчётность','Да',
   'Детализация воронки КД в разрезе каналов и направлений лидогенерации',
   'Лиды КД, преобразование, продажи, выручка по каналам',
-  'owox (Leads) + backoffice (Sales)',
+  'marts._32_lead_info + marts._23_sale',
   'авто в DWH'),
  ('Квалификация и преобразование лида по каналам КД','Power BI','Сквозная отчётность','Да',
   'Когортная преобразованность лидов КД нарастающим итогом по дням (0/1/2/.../>7 дн) в разрезе каналов',
   'Факт-лиды, Преобразовано через N дней (шт/%), преобразованность накопленная',
-  'owox.lead_registration_history + crm_prod.Opportunities',
+  'marts._32_lead_info + marts._33_opportunities',
   'пересобрать'),
  ('Партнёр Мой бизнес','Power BI','КД','Да',
   'Отчётность по партнёру «Мой бизнес»: лиды, продажи, выручка, счета',
   'Лиды, продажи, выручка, выставленные счета по партнёру',
-  'backoffice.sales_report_row (regional_partner_name) + InvoicePayment',
+  'marts._23_sale (regional_partner_name) + marts._55_payment_history_ex',
   'пересобрать'),
  ('Отчётность КЦ Продаж БИЗ - Статусы и подстатусы звонков','Power BI','Отчётность КЦ Продаж БИЗ','Да',
   'Статусы и подстатусы звонков колл-центра продаж БИЗ',
   'Статусы/подстатусы звонков, % дозвона, попытки',
-  'dialer.CallsAC + crm_prod',
+  'marts._38_calls + marts._33_opportunities',
   'BI-сторона'),
  ('Отчёты продаж 2.0 - Общая конверсия','Power BI','Отчётность КЦ Продаж БИЗ','Да',
   'Общая конверсия продаж КЦ Продаж БИЗ',
   'Лиды, продажи, общая конверсия',
-  'backoffice (Sales) + owox (Leads)',
+  'marts._23_sale + marts._32_lead_info',
   'авто в DWH'),
  ('Отчёты продаж 2.1 - Общая конверсия ООП','Power BI','Отчётность КЦ Продаж БИЗ','Да',
   'Общая конверсия отдела online-продаж (ООП)',
   'Лиды, продажи, конверсия ООП',
-  'backoffice (Sales) + owox (Leads)',
+  'marts._23_sale + marts._32_lead_info',
   'авто в DWH'),
  ('Отчётность WL - Upsell Сбербанк','Power BI','Главная','Да',
   'Апсейл по WL-направлению Сбербанк',
   'Upsell Сбербанк (руб/шт), WL-продажи',
-  'backoffice.sales_report_row (WL)',
+  'marts._23_sale (WL)',
   'пересобрать'),
 ]
 
@@ -496,3 +503,42 @@ TOP10 = [
 ]
 TOP10_NOTE = ('Не вошли в топ-10: служебные и узкие листы «Сквозной отчётности» (Спец. тарифы, Оплаченные месяцы, '
   'Конверсия источников, Воронка по лидам) - они срезы ядра воронки и закрываются витриной dm_kd_funnel.')
+
+# ============== Эталон-конформность: частоты обновления (Roadmap) и вопросы к DE (Витрины) ==============
+# Частота обновления по эталону ИБ v58: (Желаемая, Мин. допустимая, Инкрементальное обновление)
+REFRESH = {
+ 'int_leads_base':          ('Раз в час', 'Раз в сутки', 'Да - инкремент по lead_date'),
+ 'dm_kd_funnel':            ('Раз в сутки', 'Раз в сутки', 'Да - инкремент по lead_date'),
+ 'int_sales_base_kd':       ('Раз в час', 'Раз в сутки', 'Да - инкремент по payment_date'),
+ 'dim_date':                ('Раз в год', 'Раз в год', 'Нет - статика'),
+ 'dim_lead_type':           ('Раз в неделю', 'Раз в месяц', 'Нет - full refresh (справочник)'),
+ 'dim_kd_cost':             ('Раз в сутки', 'Раз в неделю', 'Нет - full refresh (файл расходов)'),
+ 'dm_kd_invoices':          ('Раз в сутки', 'Раз в сутки', 'Да - инкремент по invoice_date'),
+ 'dim_partner':             ('Раз в неделю', 'Раз в месяц', 'Нет - full refresh (справочник)'),
+ 'plan_kd_monthly':         ('Раз в сутки', 'Раз в неделю', 'Нет - full refresh (план из Google Sheet)'),
+ 'dm_kd_cohort_conversion': ('Раз в сутки (ночью)', 'Раз в неделю', 'Нет - full refresh (когорта × день)'),
+ 'dm_kd_calls_status':      ('-', '-', '-'),
+ 'dm_kd_retention':         ('Раз в сутки', 'Раз в неделю', 'Да - инкремент по событию продления'),
+}
+
+# Открытые вопросы к DE по полям витрин (колонка «вопросы» эталона). Ключ: имя витрины → {поле: вопрос}
+QUESTIONS = {
+ 'int_leads_base': {
+   'lead_type': '«Альфа-бандл» в marts нет (PBI calc-column) - где зафиксировать правило исключения бандла из «Лиды КД»?',
+   'is_called': 'Дозвон по статусам (DROP/ANSWER/ABANDON/FAST_DROP) - нужен мост _38_calls.lead_external_id → firm_id; пока прокси talk>0.',
+   'is_converted_mom': 'Мес-в-мес считать по DATEDIFF(MONTH, registration_date_c, ca_change_date)=0 - подтвердить с КД.',
+ },
+ 'int_sales_base_kd': {
+   'discount_total': 'Воспроизвести блок дисконтов Кирилла (3 канала) на продажах КД, как в int_sales_base v58?',
+   'pay_type': 'Полный перечень operator_department для «Продление» (кроме КЦ Продаж БИЗ) - сверить с КД.',
+ },
+ 'dm_kd_invoices': {
+   'invoices_sum': 'Сумма счёта по фирме: в marts на уровне фирмы нет - брать из moedelo InvoicePayment (PaymentSum) или JOIN _55 ↔ _23 по PrimaryPaymentId?',
+ },
+ 'dim_kd_cost': {
+   'cost_item': 'Состав статьи «Сертификаты» (ЭЦП или подарочные клиентам)? Точные названия статей сверить с файлом расходов КД.',
+ },
+ 'dm_kd_cohort_conversion': {
+   'conv_d0': 'Дозревание по дням считать от ca_change_date? Сверить раскладку 0/1-7/>7 дн с дашбордом «через N дней».',
+ },
+}
