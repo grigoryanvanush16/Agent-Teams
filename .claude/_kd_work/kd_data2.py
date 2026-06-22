@@ -21,10 +21,10 @@ ROADMAP = [
   'marts._44_bill (923K: bill_date, total_sum, status) + _44_primary_bill (firm через client_login, creation_source)',
   'переиспользовать',
   'Выставленные счета шт/руб (total_sum), дата счёта (bill_date), статус, источник счёта (creation_source - для самооплат). Закрывает мой бывший GAP по сумме счёта.'),
- ('renewal_summary + renewal_detail  [backoffice]','Готово - переиспользуем',1,'есть',
-  'backoffice.renewal_summary (expired/renewed по biz/pro/outsource × месяц истечения, firm_id, is_wl, is_first_time) + renewal_detail',
+ ('renewal_summary + renewal_detail  [backoffice]','Готово - переиспользуем (проверено)',1,'есть',
+  'backoffice.renewal_summary (959K строк, заполнены *_pro; biz/outsource - нули!) + renewal_detail (old→new tariff, new_prolong_sum, даты)',
   'переиспользовать',
-  'УДЕРЖАНИЕ (бывший GAP!): % переподписки = renewed/expired; Churn = expired−renewed; Upsell в АУТ = expired_biz но renewed_outsource; Upsell WL по is_wl. Готовая таблица продлений.'),
+  'УДЕРЖАНИЕ (бывший GAP!): % переподписки = renewed_pro/expired_pro (ПРОВЕРЕНО: май 0.80); Churn = (expired_pro−renewed_pro)/expired_pro; Upsell в АУТ = переход old_tariff(ИБ)→new_tariff(АУТ) в renewal_detail; LT для LTV = из дат renewal_detail.'),
  ('self_sales_report_row  [backoffice]','Готово - переиспользуем',1,'есть',
   'backoffice.self_sales_report_row',
   'переиспользовать',
@@ -94,35 +94,42 @@ CTE_RULES = """-- Бизнес-правила сборки воронки КД (
 -- 11. СКИДКИ (3 канала, спека Кирилла, см. эталон int_sales_base v58): discount_manager / discount_friend / discount_loyalty,
 --     % = Скидка (Общая) ÷ номинальная стоимость из реального периода. Исключаются Бюро/возвраты/рассрочки/переходы."""
 
-CTE_SQL_TITLE = "Полная сборка ядра воронки dm_kd_funnel (по дате лида):"
+CTE_SQL_TITLE = "Полная сборка ядра воронки dm_kd_funnel напрямую из ГОТОВЫХ таблиц (по дате лида):"
 CTE_SQL = """DROP TABLE IF EXISTS dm_kd_funnel;
+-- Источники - только ГОТОВЫЕ таблицы marts (промежуточные витрины не строим, переиспользуем).
+-- Проверено на marts (май 2026): Лиды КД 9116 -> дозвон 8744 -> преобразование 4639 -> продажи 103.
 
-WITH leads AS (                         -- лиды КД с типом и продуктом (источник marts._32_lead_info)
-  SELECT l.firm_id,
-         l.lead_date,
-         l.source_channel_group, l.source_channel,
-         l.product,
-         l.lead_type,                             -- из dim_lead_type (SWITCH)
-         l.is_fact_lead,                          -- ИБ/Аут И «загружен в АО»
-         l.is_called,                             -- есть звонок CallsAC (DROP/ANSWER/ABANDON/FAST_DROP)
-         l.is_converted_gross,                    -- преобразован валово
-         l.is_converted_mom                       -- преобразован мес-в-мес
-  FROM int_leads_base l
-  WHERE l.lead_type = N'Лиды КД'
-), pays AS (                            -- ОПТИМИЗАЦИЯ: предагрегируем продажи до (firm_id, год, месяц) - убирает fan-out
-  SELECT s.firm_id,                     -- (1 лид × N платежей превращался в N строк; теперь 1 строка на фирму-месяц)
-         YEAR(s.payment_date)  AS pay_year,
-         MONTH(s.payment_date) AS pay_month,
-         MAX(CASE WHEN s.is_one_time = 0 AND s.is_option = 0 THEN 1 ELSE 0 END)            AS has_tariff,
-         SUM(CASE WHEN s.is_one_time = 0 AND s.is_option = 0 THEN s.payment_sum ELSE 0 END) AS tariff_sum
-  FROM int_sales_base_kd s
-  WHERE s.pay_type = N'Новый' AND s.is_deleted = 0
+WITH leads AS (                         -- ЛИДЫ из готовой marts._32_lead_info: тип лида + продукт + факт-лид (без отдельной витрины)
+  SELECT li.firm_id,
+         CAST(li.user_registration_date AS date) AS lead_date,
+         li.source_channel_group, li.source_channel,
+         CASE WHEN li.registration_product IN ('BIZ','IB-ACC','IB-BIZ') THEN N'ИБ'
+              WHEN li.registration_product IN ('OUT','OUT-ACC','OUT-BIZ') THEN N'Аут' ELSE N'Прочее' END AS product,
+         CASE WHEN li.registration_product IN ('BIZ','IB-ACC','OUT','OUT-ACC') THEN 1 ELSE 0 END         AS is_fact_lead
+  FROM _32_lead_info li
+  WHERE li.is_deleted = 0
+    AND li.lead_gen_responsible IN (N'Коммерческая дирекция', N'Коммерческая дирекция.Проект')   -- Лиды КД (GAP: без Альфа-бандла)
+    AND li.direction IN (N'КЦ', N'МД 2', N'Freemium')
+), opp AS (                             -- ДОЗВОН/КВАЛИФИКАЦИЯ из готовой marts._33_opportunities (агрегат по фирме)
+  SELECT o.md_firm_id_c AS firm_id,
+         MAX(CASE WHEN o.ca_status = 1 THEN 1 ELSE 0 END)                                          AS is_converted,
+         -- ВАЖНО: registration_date_c в marts ПУСТ - мес-в-мес считаем по ca_change_date vs дате лида (ниже)
+         MIN(CASE WHEN o.ca_status = 1 THEN o.ca_change_date END)                                  AS conv_date,
+         MAX(CASE WHEN o.max_call_talk_duration_seconds > 0 OR o.was_contact = 1 THEN 1 ELSE 0 END) AS is_called
+  FROM _33_opportunities o WHERE o.deleted = 0 GROUP BY o.md_firm_id_c
+), pays AS (                            -- ПРОДАЖИ из готовой marts._23_sale, предагрегат фирма-месяц (без fan-out)
+  SELECT s.firm_id, YEAR(s.payment_date) AS pay_year, MONTH(s.payment_date) AS pay_month,
+         MAX(CASE WHEN s.is_one_time = 0 AND s.tariff_name NOT LIKE N'%опция%' THEN 1 ELSE 0 END)            AS has_tariff,
+         SUM(CASE WHEN s.is_one_time = 0 AND s.tariff_name NOT LIKE N'%опция%' THEN s.payment_sum ELSE 0 END) AS tariff_sum
+  FROM _23_sale s
+  WHERE s.is_deleted = 0 AND s.operator_department = N'КЦ Продаж БИЗ'   -- PayType='Новый'
+    AND s.payment_method NOT IN ('freemium','oneTime_tech','granted for partner','DeloBank','rnkbpay','tech_pay','profbuh')
   GROUP BY s.firm_id, YEAR(s.payment_date), MONTH(s.payment_date)
-), cost AS (                            -- расходы КД по месяцу/направлению (CostMarketing). Жёлтая правка: var_cost = КВ + сертификаты.
+), cost AS (                            -- РАСХОДЫ из dim_kd_cost (staging файла). Жёлтая правка: var_cost = КВ + Сертификаты.
   SELECT month, direction,
-         SUM(CASE WHEN cost_item IN (N'КВ партнёра', N'Сертификаты') THEN value ELSE 0 END) AS var_cost,  -- для CPL и CPO
+         SUM(CASE WHEN cost_item IN (N'КВ партнёра', N'Сертификаты') THEN value ELSE 0 END) AS var_cost,  -- CPL и CPO
          SUM(CASE WHEN cost_item = N'ФОТ КД' THEN value ELSE 0 END)                          AS fot_kd,
-         SUM(value)                                                                          AS cost_total -- для CAC (все статьи)
+         SUM(value)                                                                          AS cost_total -- CAC
   FROM dim_kd_cost GROUP BY month, direction
 )
 SELECT
@@ -132,17 +139,21 @@ SELECT
   ld.product,
   COUNT(DISTINCT ld.firm_id)                                       AS leads,
   COUNT(DISTINCT CASE WHEN ld.is_fact_lead = 1 THEN ld.firm_id END)        AS fact_leads_ao,
-  COUNT(DISTINCT CASE WHEN ld.is_called = 1 THEN ld.firm_id END)           AS reached,         -- дозвон
-  COUNT(DISTINCT CASE WHEN ld.is_converted_mom = 1 THEN ld.firm_id END)    AS qleads_mom,
+  COUNT(DISTINCT CASE WHEN op.is_called = 1 THEN ld.firm_id END)           AS reached,         -- дозвон
+  COUNT(DISTINCT CASE WHEN op.is_converted = 1 THEN ld.firm_id END)        AS qleads_gross,    -- квал валовое
+  -- мес-в-мес: преобразование (ca_change_date) в месяце регистрации лида (registration_date_c пуст в marts)
+  COUNT(DISTINCT CASE WHEN YEAR(op.conv_date) = YEAR(ld.lead_date)
+                       AND MONTH(op.conv_date) = MONTH(ld.lead_date) THEN ld.firm_id END) AS qleads_mom,
   COUNT(DISTINCT CASE WHEN pa.has_tariff = 1 THEN ld.firm_id END)          AS sales_tariff_by_lead,
   SUM(pa.tariff_sum)                                                       AS revenue_tariff_by_lead
 FROM leads ld
+LEFT JOIN opp  op ON op.firm_id = ld.firm_id
 -- join по фирме И месяцу регистрации = месяц оплаты (продажа «по дате лида»); pays уже без дублей
 LEFT JOIN pays pa ON pa.firm_id = ld.firm_id
                  AND pa.pay_year  = YEAR(ld.lead_date)
                  AND pa.pay_month = MONTH(ld.lead_date)
 GROUP BY ld.lead_date, ld.source_channel_group, ld.source_channel, ld.product;
--- Экономика (CPL, CPLq, CPO, CAC) и конверсии считаются как расчётные поля на агрегате (см. лист «Витрины и таблицы»).
+-- Экономика (CPL=var_cost/leads, CPLq=CPL/%квал, CPO=var_cost/продажи, CAC=cost_total/продажи) и конверсии - расчётные поля на агрегате.
 -- ОПТИМИЗАЦИЯ: month-match вынесен в условие JOIN (раньше был в CASE по фан-аут таблице) - меньше промежуточных строк."""
 
 # ============== ЛИСТ 4: Витрины и таблицы ==============
@@ -378,6 +389,35 @@ FROM stg_kd_plans;""",
    ('plan_value','план на месяц','raw','12000000','','plan_value'),
    ('plan_to_date','план на дату (расч.)','РАСЧЁТНОЕ: plan_value / дней в месяце × прошедших дней','7200000','','plan_value/days_in_month*days_passed'),
   ]},
+ {'title':'Витрина 5. Доразметка скидок КД по 3 каналам (тонкая надстройка на готовый _23_sale). Опционально - только если нужны скидочные метрики.',
+  'table':'Таблица: discount_kd  [расчётная (поверх готового marts._23_sale, спека Кирилла как в int_sales_base v58)]',
+  'sql':"""DROP TABLE IF EXISTS discount_kd;
+-- Сырьё уже в готовом marts._23_sale: sum_discount, friendinvite_discount, loyalty_program_month, promo_code,
+-- full_sum, normative_period. Логика 3 эксклюзивных каналов и real_full_sum - 1:1 из эталона int_sales_base v58.
+SELECT
+  s.firm_id, s.payment_id, s.position_number, s.payment_date,
+  -- номинал из реального периода (для % скидки): full_sum / normative_period * реальный_срок_в_месяцах
+  CAST(s.full_sum * 1.0 / NULLIF(s.normative_period,0)
+       * ROUND(DATEDIFF(DAY, s.start_date, s.end_date)/30.0, 0) AS DECIMAL(18,2))           AS real_full_sum,
+  -- 3 эксклюзивных канала (MECE: friend > loyalty > manager), как в v58
+  CASE WHEN CHARINDEX(N'FriendInvite', ISNULL(s.promo_code,'')) > 0 THEN s.sum_discount ELSE 0 END  AS discount_friend,
+  CASE WHEN CHARINDEX(N'FriendInvite', ISNULL(s.promo_code,'')) = 0 AND s.loyalty_program_month <> 0
+            THEN s.sum_discount ELSE 0 END                                                          AS discount_loyalty,
+  CASE WHEN CHARINDEX(N'FriendInvite', ISNULL(s.promo_code,'')) = 0 AND s.loyalty_program_month = 0
+            THEN s.sum_discount ELSE 0 END                                                          AS discount_manager
+INTO discount_kd
+FROM _23_sale s
+WHERE s.is_deleted = 0 AND s.product_group <> 'SPS' AND s.is_one_time = 0
+  AND s.payment_method NOT IN ('AutoPay','SberAutoPay');
+-- Скидка (Общая), руб = friend + loyalty + manager; % = Σ скидка ÷ Σ real_full_sum по ИБ/Аут.""",
+  'fields':[
+   ('firm_id','ид фирмы','готовый _23_sale.firm_id','1070037','PK','firm_id'),
+   ('payment_id','ид платежа','готовый _23_sale','16284347','PK','payment_id'),
+   ('real_full_sum','номинал из реального периода, руб','РАСЧЁТНОЕ: база для % скидки (как в v58)','8704','','full_sum/normative_period*real_months'),
+   ('discount_friend','скидка «Пригласи друга», руб','РАСЧЁТНОЕ - promo_code содержит FriendInvite','0','','CASE FriendInvite'),
+   ('discount_loyalty','скидка «Лояльность», руб','РАСЧЁТНОЕ - loyalty_program_month <> 0','0','','CASE loyalty'),
+   ('discount_manager','скидка менеджера, руб','РАСЧЁТНОЕ - без friend/loyalty','1243','','CASE остаток'),
+  ]},
 ]
 
 # ============== ЛИСТ 5: ТЗ для разработки ==============
@@ -413,10 +453,10 @@ TZ = [
   '«Альфа-бандл» (исключение из «Лиды КД») - это PBI calc-column, в marts/owox колонкой НЕ хранится. Чтобы воспроизвести точный объём «Лиды КД», нужно вынести правило бандла в источник или справочник.',
   'Лиды КД (точный объём с исключением бандла)',
   'Где формируется Альфа-бандл - уточнить у КД / в логике PBI.'),
- (8,'GAP: LTV и Gross margin','DE + КД','Нет данных',
-  'LTV = ARPU × LT: ARPU есть (_23_sale), LT (срок жизни) можно взять из renewal_summary/renewal_detail - решить методологию. Gross margin требует разнесения себестоимости на продукт/канал - источника нет.',
-  'LTV, Gross margin',
-  'LTV: ARPU (_23_sale) × LT (renewal_*). Gross margin: нужен источник себестоимости (БЛОКЕР).'),
+ (8,'LTV (строим) + Gross margin (GAP)','DE + КД','LTV - источники есть; GM - нет',
+  'LTV = ARPU × LT: ARPU из готового _23_sale, LT (срок жизни в мес) - из дат renewal_detail (start_date/end_date/old_tariff_incoming_date). Кросс-проверено: источники есть, нужна методология LT. Gross margin - ЕДИНСТВЕННЫЙ реальный GAP: требует разнесения себестоимости на продукт/канал, источника нет.',
+  'LTV (строим), Gross margin (GAP)',
+  'LTV: ARPU (_23_sale) × LT (backoffice.renewal_detail даты). Gross margin: нужен источник себестоимости (БЛОКЕР).'),
 ]
 
 # ============== ЛИСТ 6: Реестр дашбордов ==============
