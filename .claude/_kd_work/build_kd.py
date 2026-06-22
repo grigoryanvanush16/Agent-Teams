@@ -78,15 +78,23 @@ C_YELHL='FFF2CC'
 LOOKUP={rec[2]:rec for rec in D.CATALOG if rec[0]!=D.BAND}
 
 STATUS_FILL={'Готово':'C6EFCE','В работе':'FFEB9C','Уточнить':'FCE4D6','GAP':'D9D9D9'}
-VIT_FILL={'новая витрина':'E2EFDA','текущая витрина':'DDEBF7','нет данных':'D9D9D9'}
+VIT_FILL={'новая витрина':'FFF2CC','текущая витрина':'E2EFDA','нет данных':'D9D9D9'}
 TOP_FILL='FFD966'
+# новая витрина = нет готовой таблицы НИ В ОДНОЙ БД (расходы/план - внешний файл; скидки/конверсия - агрегат)
+NOVA_VIT={'Переменные расходы, руб','ФОТ КД, руб','CPL','CPLq','CPO','CAC',
+          'Скидка (по дате лида), руб/%','Скидка (по дате оплаты), руб/%','План на дату','% выполнения плана на дату'}
+NODATA_VIT={'LTV','Gross margin'}                                   # true GAP
+# ретеншн переиспользует backoffice.renewal_summary - больше не GAP
+STATUS_OVERRIDE={'Churn (отток), %':'Готово','% переподписки':'Готово',
+                 'Upsell на АУТ, шт/руб':'Готово','Upsell Сбербанк (WL), руб/шт':'Готово'}
 def derive(rec):
-    status,ready,impl=rec[9],rec[10],rec[11]
+    name,status,ready=rec[2],rec[9],rec[10]
     st={'Считаем сейчас':'Готово','После новой витрины':'В работе','Нет данных (блокер)':'GAP'}.get(ready,'В работе')
     if status in ('GAP','Уточнить'): st=status
-    if ready=='Нет данных (блокер)' or status=='GAP': vit='нет данных'
-    elif impl=='BI-сторона': vit='текущая витрина'
-    else: vit='новая витрина'
+    if name in STATUS_OVERRIDE: st=STATUS_OVERRIDE[name]
+    if name in NODATA_VIT: vit='нет данных'
+    elif name in NOVA_VIT: vit='новая витрина'
+    else: vit='текущая витрина'
     return st,vit
 
 ws=wb.create_sheet('Каталог метрик')
@@ -105,9 +113,9 @@ legcell('F3:G3','Уточнить\nоткрытый вопрос',STATUS_FILL['�
 legcell('H3:I3','GAP\nнет данных (блокер)',STATUS_FILL['GAP'])
 legcell('J3:K3','★ Топ-10\nпервая очередь',TOP_FILL)
 ws['A4']='Витрина:'; ws['A4'].font=Font(bold=True,size=9)
-legcell('B4:D4','новая витрина\nстроим (лист «Витрины и таблицы»)',VIT_FILL['новая витрина'])
-legcell('E4:G4','текущая витрина\nсуществующая / остаётся в PBI',VIT_FILL['текущая витрина'])
-legcell('H4:K4','нет данных\nблокер источника',VIT_FILL['нет данных'])
+legcell('B4:D4','текущая витрина\nготовая таблица - переиспользуем',VIT_FILL['текущая витрина'])
+legcell('E4:G4','новая витрина\nстроим (лист «Витрины и таблицы»)',VIT_FILL['новая витрина'])
+legcell('H4:K4','нет данных\nблокер источника (LTV, Gross margin)',VIT_FILL['нет данных'])
 ws.row_dimensions[3].height=26; ws.row_dimensions[4].height=26
 header(ws,5,['Группа','№','Метрика','Гранулярность','Описание','Формула (методология словами)','Ед.','Приор.','KPI','★','Статус','Витрина'])
 ws.freeze_panes='C6'
@@ -137,20 +145,21 @@ ws.row_dimensions[r].height=44
 ws=wb.create_sheet('Roadmap витрин')
 setcol(ws,{'A':26,'B':24,'C':6,'D':14,'E':42,'F':52,'G':30})
 title(ws,'Roadmap витрин КД',
-  'Какие витрины строим под каталог метрик КД. Колонки: витрина, статус, приоритет, ответственный, источник, зачем нужна, частота обновления. Приоритет 0 - ядро воронки и фундамент.',7)
+  'Что переиспользуем из готовых таблиц (зелёные) и что строим заново (жёлтые). Колонки: витрина/таблица, статус, приоритет, ответственный, источник, зачем нужна, частота. Проверено по marts / owox / backoffice.',7)
 n_metrics=sum(1 for x in D.CATALOG if x[0]!=D.BAND)
-n_key=sum(1 for x in D.CATALOG if x[0]!=D.BAND and x[7]==0)
-n_road=len(D2.ROADMAP); n_nobuild=sum(1 for x in D2.ROADMAP if x[5]=='BI-сторона')
-for i,(lbl,val) in enumerate([('Итого метрик в каталоге',n_metrics),('Из них ключевые (приоритет 0)',n_key),
-        ('Остальные (приоритет 1)',n_metrics-n_key),('Витрин/таблиц в roadmap',n_road),
-        ('Из них НЕ строим как витрины (BI-сторона)',n_nobuild)]):
+n_reuse=sum(1 for x in D2.ROADMAP if x[5] in ('переиспользовать','BI-сторона'))
+n_build=sum(1 for x in D2.ROADMAP if x[5]=='строить')
+for i,(lbl,val) in enumerate([('Итого метрик в каталоге',n_metrics),
+        ('Переиспользуем готовых таблиц',n_reuse),('Строим заново витрин',n_build),
+        ('Из них ядро (приоритет 0)','dm_kd_funnel')]):
     ws.cell(4+i,1,lbl).font=Font(bold=True); ws.cell(4+i,2,val)
-header(ws,10,['Витрина / таблица','Статус','Приор.','Ответственный','Источник','Зачем нужна / что питает','Частота обновления'])
-ws.freeze_panes='A11'; r=11
+header(ws,9,['Витрина / таблица','Статус','Приор.','Ответственный','Источник','Зачем нужна / что питает','Частота обновления'])
+ws.freeze_panes='A10'; r=10
+ROAD_FILL={'переиспользовать':'E2EFDA','строить':'FFF2CC','BI-сторона':'DDEBF7'}
 for v,st,pr,ow,src,impl,purp in D2.ROADMAP:
-    fw,fm,inc=D2.REFRESH.get(v,('-','-','-'))
-    freq = '-' if fw=='-' else f'{fw} (мин. {fm}); {inc}'
+    freq={'переиспользовать':'наследует от источника','BI-сторона':'BI-сторона (по источнику)','строить':'Раз в сутки (инкремент)'}.get(impl,'-')
     datarow(ws,r,[v,st,pr,ow,src,purp,freq],center=(3,))
+    if impl in ROAD_FILL: ws.cell(r,2).fill=fill(ROAD_FILL[impl])
     r+=1
 
 # ===== Лист 3: CTE =====
@@ -164,7 +173,7 @@ ws.merge_cells('A6:A6'); band(ws,6,D2.CTE_SQL_TITLE,1); sqlblock(ws,7,D2.CTE_SQL
 ws=wb.create_sheet('Витрины и таблицы')
 setcol(ws,{'A':24,'B':30,'C':40,'D':15,'E':6,'F':34,'G':38})
 title(ws,'Витрины и таблицы (структура по полям)',
-  'Для каждой витрины КД: заголовок с типом, SQL сборки и поля (колонки «вопросы» к DE и «sql» - как в эталоне ИБ v58). Грануляции и бизнес-правила - из листа «CTE».',7)
+  'Подробно описаны НОВЫЕ витрины, которые строим (dm_kd_funnel, dim_kd_cost, plan_kd_monthly, dm_kd_cohort_conversion + тонкие надстройки). Переиспользуемые готовые таблицы (_32_lead_info, _33_opportunities, _23_sale, _44_bill, renewal_summary…) - см. лист «Roadmap витрин». Колонки «вопросы» и «sql» - как в эталоне ИБ v58.',7)
 import re as _re
 r=4
 for vit in D2.VITRINY:
@@ -220,4 +229,4 @@ band(ws,r,D2.TOP10_NOTE,10,color=C_GROUP,size=10,fc=C_TITLE)
 
 wb.save(OUT)
 print('SAVED:', OUT)
-print('Метрик в каталоге:', n_metrics, '| ключевых:', n_key, '| витрин:', n_road)
+print('Метрик в каталоге:', n_metrics, '| переиспользуем:', n_reuse, '| строим:', n_build)
