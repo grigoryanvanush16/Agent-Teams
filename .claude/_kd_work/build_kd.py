@@ -176,13 +176,19 @@ setcol(ws,{'A':24,'B':30,'C':40,'D':15,'E':6,'F':34,'G':38})
 title(ws,'Витрины и таблицы (структура по полям)',
   'Подробно описаны НОВЫЕ витрины, которые строим (dm_kd_funnel, dim_kd_cost, plan_kd_monthly, dm_kd_cohort_conversion + тонкие надстройки). Переиспользуемые готовые таблицы (_32_lead_info, _33_opportunities, _23_sale, _44_bill, renewal_summary…) - см. лист «Roadmap витрин». Колонки «вопросы» и «sql» - как в эталоне ИБ v58.',7)
 import re as _re
+# Только СТРОЯЩИЕСЯ витрины (переиспользуемые готовые таблицы - на листе Roadmap). Фильтр + перенумерация.
+BUILD_ORDER=['dm_kd_funnel','dim_kd_cost','plan_kd_monthly','dm_kd_cohort_conversion','discount_kd']
+def vit_tbl(v):
+    mm=_re.search(r'Таблица:\s*([A-Za-z0-9_]+)', v['table']); return mm.group(1) if mm else ''
+build_vits=[v for tn in BUILD_ORDER for v in D2.VITRINY if vit_tbl(v)==tn]
 r=4
-for vit in D2.VITRINY:
-    band(ws,r,vit['title'],7); r+=1
+for idx,vit in enumerate(build_vits,1):
+    newtitle=_re.sub(r'^Витрина\s*\d+\.', f'Витрина {idx}.', vit['title'])
+    band(ws,r,newtitle,7); r+=1
     c=ws.cell(r,1,vit['table']); c.font=Font(bold=True,color=C_TITLE); r+=1
     sqlblock(ws,r,vit['sql'],7); r+=1
     header(ws,r,['поле','описание','комментарий','значения (пример)','ключ','вопросы','sql']); r+=1
-    m=_re.search(r'Таблица:\s*([A-Za-z0-9_]+)', vit['table']); tbl=m.group(1) if m else ''
+    tbl=vit_tbl(vit)
     qmap=D2.QUESTIONS.get(tbl,{})
     for f in vit['fields']:
         name,desc,comm,ex,key,sqlv=f
